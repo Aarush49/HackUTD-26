@@ -8,6 +8,15 @@ Mobile-first personal finance demo built with Expo, React Native, TypeScript, an
 2. Start Metro: `npx expo start`
 3. Scan the QR code with Expo Go, or press `a` for Android / `i` for iOS.
 
+To connect the merged FastAPI backend, create `frontend/.env` with:
+
+```env
+EXPO_PUBLIC_API_BASE_URL=http://YOUR_COMPUTER_LAN_IP:8000
+EXPO_PUBLIC_NESSIE_CUSTOMER_ID=your-sandbox-customer-id
+```
+
+Use `http://127.0.0.1:8000` when running the web client on the same computer. A physical phone must use the computer's LAN address.
+
 The app uses only Expo Go-compatible libraries; no custom native build or Skia is required.
 
 ## Demo authentication
