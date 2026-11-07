@@ -1,7 +1,15 @@
-"use client";
-import { CalendarDays, ChartNoAxesCombined, CircleGauge, Flower2, Sparkles } from "lucide-react";
-import { motion } from "framer-motion";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
+import { CalendarDays, ChartNoAxesCombined, CircleGauge, Flower2, Sparkles } from "lucide-react-native";
+import { BlurView } from "expo-blur";
+import * as Haptics from "expo-haptics";
+import { colors } from "@/lib/theme";
 import { useFinanceStore } from "@/lib/store";
-import { Tab } from "@/lib/mock";
-const items:{id:Tab;label:string;icon:typeof CalendarDays}[]=[{id:"today",label:"Today",icon:CalendarDays},{id:"picture",label:"Picture",icon:ChartNoAxesCombined},{id:"whatif",label:"What if",icon:Sparkles},{id:"goals",label:"Goals",icon:Flower2},{id:"predict",label:"Predict",icon:CircleGauge}];
-export function TabBar(){const {tab,setTab,openSheet}=useFinanceStore();return <nav className="tabbar" aria-label="Main navigation">{items.map(({id,label,icon:Icon},i)=>{const active=tab===id;const center=i===2;return <button key={id} aria-current={active?"page":undefined} className={center?"center-tab":""} onClick={()=>center?openSheet("whatif"):setTab(id)}>{center?<span className="center-orb"><Icon/></span>:<Icon/>}<span>{label}</span>{active&&!center&&<motion.i layoutId="active-dot"/>}</button>})}</nav>}
+const meta: Record<string, { label: string; Icon: typeof CalendarDays }> = { index: { label: "Today", Icon: CalendarDays }, picture: { label: "Picture", Icon: ChartNoAxesCombined }, goals: { label: "Goals", Icon: Flower2 }, predict: { label: "Predict", Icon: CircleGauge } };
+export function TabBar({ state, navigateToTab, emitter }: any) {
+  const openSheet = useFinanceStore(x => x.openSheet);
+  const press = (key: string, focused: boolean) => { Haptics.selectionAsync(); const event = emitter.emit({ type: "tabPress", target: key, canPreventDefault: true }); if (!focused && !event.defaultPrevented) navigateToTab(key); };
+  const item = (route: any) => { const focused = state.routes[state.index].key === route.key, { label, Icon } = meta[route.name]; return <Pressable key={route.key} accessibilityRole="tab" accessibilityState={{ selected: focused }} onPress={() => press(route.key, focused)} style={s.item}><Icon color={focused ? colors.ink : colors.muted} size={21}/><Text style={[s.label, focused && s.active]}>{label}</Text>{focused && <View style={s.activeDot}/>}</Pressable>; };
+  return <BlurView intensity={55} tint="light" style={s.bar}>{state.routes.slice(0, 2).map(item)}<Pressable accessibilityRole="button" accessibilityLabel="What if" onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openSheet("whatif"); }} style={s.item}><View style={s.orb}><Sparkles color="white"/></View><Text style={s.label}>What if</Text></Pressable>{state.routes.slice(2).map(item)}</BlurView>;
+}
+const s = StyleSheet.create({ bar: { position: "absolute", left: 0, right: 0, bottom: 0, height: 84, flexDirection: "row", paddingBottom: 8, borderTopWidth: 1, borderColor: "white", overflow: "visible" }, item: { flex: 1, minHeight: 58, alignItems: "center", justifyContent: "center", gap: 4 }, label: { fontFamily: "Inter_700Bold", fontSize: 9, color: colors.muted }, active: { color: colors.ink }, activeDot: { position: "absolute", bottom: 2, width: 5, height: 5, borderRadius: 3, backgroundColor: colors.pink }, orb: { width: 58, height: 58, borderRadius: 30, backgroundColor: colors.pink, borderWidth: 5, borderColor: "white", alignItems: "center", justifyContent: "center", marginTop: -28, shadowColor: colors.pink, shadowOpacity: .35, shadowRadius: 14, elevation: 7 } });
