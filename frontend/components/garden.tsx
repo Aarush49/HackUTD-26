@@ -1,13 +1,13 @@
 "use client";
 import { motion, useReducedMotion } from "framer-motion";
-import { useFinanceStore } from "@/lib/store";
-import { Goal } from "@/lib/mock";
+import { goalViews, useFinanceStore } from "@/lib/store";
+import type { Goal } from "@/lib/store";
 
 export function Sapling({ goal, ambient=false, compact=false }: {goal:Goal;ambient?:boolean;compact?:boolean}) {
-  const reduce=useReducedMotion(); const { shock, fixed, openSheet }=useFinanceStore();
-  const growth=Math.max(.08, Math.min(1, goal.growth-(shock&&!fixed?.22:0))); const stage=Math.min(4,Math.floor(growth*5));
-  const h=compact?70:ambient?155:112; const crown=15+stage*5; const droop=shock&&!fixed?10:0;
-  return <motion.button aria-label={`Open ${goal.title} growth details`} className="sapling" onClick={()=>openSheet("sapling")} animate={{scale:.78+growth*.22,rotate:droop}} transition={reduce?{duration:0}:{type:"spring",stiffness:120,damping:12}} style={{width:h*.72,height:h}}>
+  const reduce=useReducedMotion(); const inspectGoal=useFinanceStore(s=>s.inspectGoal);
+  const growth=Math.max(.08, Math.min(1, goal.growth ?? 0)); const stage=Math.min(4,Math.floor(growth*5));
+  const h=compact?70:ambient?155:112; const crown=15+stage*5; const droop=0;
+  return <motion.button aria-label={`Open ${goal.title} growth details`} className="sapling" onClick={event=>{event.stopPropagation();inspectGoal(goal.id)}} animate={{scale:.78+growth*.22,rotate:droop}} transition={reduce?{duration:0}:{type:"spring",stiffness:120,damping:12}} style={{width:h*.72,height:h}}>
     <svg viewBox="0 0 100 150" width="100%" height="100%" aria-hidden="true">
       <ellipse cx="50" cy="138" rx="28" ry="6" fill="#38BDF8" opacity=".14"/>
       {stage===0?<><ellipse cx="50" cy="132" rx="9" ry="5" fill="#9A6B4F"/><path d="M50 128v-8" stroke="#3D8B64" strokeWidth="4"/></>:<>
@@ -19,4 +19,9 @@ export function Sapling({ goal, ambient=false, compact=false }: {goal:Goal;ambie
     </svg>
   </motion.button>;
 }
-export function GardenLayer(){const goals=useFinanceStore(s=>s.data.goals);return <div className="garden-layer" aria-hidden="true"><div className="garden-soil"/><Sapling goal={goals[2]}/><Sapling goal={{...goals[1],growth:.81,title:"Overall financial health"}} ambient/><Sapling goal={goals[0]}/></div>}
+export function GardenLayer(){
+  const dashboard=useFinanceStore(s=>s.dashboard);
+  const baseline=useFinanceStore(s=>s.baseline);
+  const goals=goalViews(dashboard, baseline).filter(goal=>goal.growth!==null).slice(0,3);
+  return <div className="garden-layer"><div className="garden-soil"/>{goals.map((goal,index)=><Sapling key={goal.id} goal={goal} ambient={index===1}/>)}</div>;
+}

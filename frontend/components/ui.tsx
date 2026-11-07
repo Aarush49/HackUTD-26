@@ -10,14 +10,14 @@ export function Card({ children, className = "", onClick }: { children: ReactNod
 export function Eyebrow({ children }: { children: ReactNode }) { return <p className="eyebrow">{children}</p>; }
 export function BigNumber({ children, className = "" }: { children: ReactNode; className?: string }) { return <div className={`big-number ${className}`}>{children}</div>; }
 export function Badge({ children, tone = "blue" }: { children: ReactNode; tone?: "blue"|"pink"|"green"|"amber" }) { return <span className={`badge badge-${tone}`}>{children}</span>; }
-export function Button3D({ children, onClick, className = "", ariaLabel }: { children: ReactNode; onClick?: () => void; className?: string; ariaLabel?: string }) {
-  return <motion.button aria-label={ariaLabel} whileTap={{ y: 3 }} onClick={onClick} className={`button-3d ${className}`}>{children}</motion.button>;
+export function Button3D({ children, onClick, className = "", ariaLabel, disabled, type = "button" }: { children: ReactNode; onClick?: () => void; className?: string; ariaLabel?: string; disabled?: boolean; type?: "button" | "submit" }) {
+  return <motion.button type={type} disabled={disabled} aria-label={ariaLabel} whileTap={{ y: 3 }} onClick={onClick} className={`button-3d ${className}`}>{children}</motion.button>;
 }
 export function SegmentedPill<T extends string>({ options, value, onChange }: { options: readonly T[]; value: T; onChange: (v:T)=>void }) {
   return <div className="segmented">{options.map(o => <button key={o} onClick={()=>onChange(o)} className={value===o?"active":""}>{o}</button>)}</div>;
 }
 export function StatTile({ label, value, tone="blue" }: { label:string; value:string; tone?:string }) { return <div className={`stat-tile tile-${tone}`}><Eyebrow>{label}</Eyebrow><strong>{value}</strong></div>; }
-export function TrustTag() { return <div className="trust-tag"><span /> Synthetic demo data</div>; }
+export function TrustTag() { return <div className="trust-tag"><span /> Nessie sandbox</div>; }
 export function Heading({ children, accent }: { children: ReactNode; accent: string }) { return <h1 className="display-heading">{children} <em>{accent}</em></h1>; }
 
 export function LineChartWithNodes({ data, lines, height=210 }: { data: Record<string, unknown>[]; lines: { key:string; color:string; dashed?:boolean }[]; height?:number }) {

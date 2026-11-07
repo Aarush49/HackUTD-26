@@ -1,20 +1,106 @@
 "use client";
+
 import { create } from "zustand";
-import { mockData, Tab } from "@/lib/mock";
+import { api, displayDate, number, resolveCustomerId } from "@/lib/api";
+import type { Dashboard, Product, Risk } from "@/lib/api";
+import type { Tab } from "@/lib/mock/types";
+
+export const headlineExamples = ["Fed holds rates", "Inflation cools", "Oil prices climb"];
+export const shockPresets = [
+  { id: "repair", title: "Car repair", amount: 2400, detail: "One surprise this month", input: { unexpected_expense: 2400 } },
+  { id: "income", title: "Lose income", amount: null, detail: "Two months without pay", input: { income_reduction: 1, income_reduction_months: 2 } },
+  { id: "rent", title: "Rent rises", amount: 2400, detail: "$200 more for 12 months", input: null },
+] as const;
+
+export type Goal = {
+  id: string;
+  title: string;
+  saved: number | null;
+  target: number | null;
+  eta: string;
+  growth: number | null;
+};
 
 type State = {
-  data: typeof mockData; tab: Tab; sheet: null | "whatif" | "goal" | "sapling"; selectedGoal: string | null;
-  shock: string | null; fixed: boolean; predictMode: "break" | "simulate"; period: "Week" | "Month" | "Year";
+  dashboard: Dashboard | null;
+  baseline: Risk | null;
+  baselineError: string | null;
+  products: Product[] | null;
+  productsError: string | null;
+  status: "idle" | "loading" | "ready" | "error";
+  error: string | null;
+  tab: Tab;
+  sheet: null | "whatif" | "goal" | "sapling";
+  selectedGoal: string | null;
+  shock: string | null;
+  fixed: boolean;
+  predictMode: "break" | "simulate";
+  period: "Week" | "Month" | "Year";
   sim: { monthly: number; years: number; rate: number };
-  setTab: (tab: Tab) => void; openSheet: (sheet: State["sheet"]) => void; closeSheet: () => void;
-  selectGoal: (id: string) => void; applyShock: (id: string) => void; fixShock: () => void;
-  setPredictMode: (m: State["predictMode"]) => void; setPeriod: (p: State["period"]) => void; setSim: (k: keyof State["sim"], v: number) => void;
+  load: () => Promise<void>;
+  setTab: (tab: Tab) => void;
+  openSheet: (sheet: State["sheet"]) => void;
+  closeSheet: () => void;
+  selectGoal: (id: string) => void;
+  inspectGoal: (id: string) => void;
+  applyShock: (id: string) => void;
+  fixShock: () => void;
+  setPredictMode: (m: State["predictMode"]) => void;
+  setPeriod: (p: State["period"]) => void;
+  setSim: (k: keyof State["sim"], v: number) => void;
 };
-export const useFinanceStore = create<State>((set) => ({
-  data: mockData, tab: "today", sheet: null, selectedGoal: null, shock: null, fixed: false, predictMode: "break", period: "Month",
-  sim: { monthly: mockData.simulate.monthly, years: mockData.simulate.years, rate: mockData.simulate.rate },
-  setTab: (tab) => set({ tab }), openSheet: (sheet) => set({ sheet }), closeSheet: () => set({ sheet: null }),
-  selectGoal: (id) => set({ selectedGoal: id, sheet: "goal" }), applyShock: (id) => set({ shock: id, fixed: false }),
-  fixShock: () => set({ fixed: true }), setPredictMode: (predictMode) => set({ predictMode }), setPeriod: (period) => set({ period }),
-  setSim: (k, v) => set((s) => ({ sim: { ...s.sim, [k]: v } }))
+
+export function goalViews(dashboard: Dashboard | null, baseline: Risk | null): Goal[] {
+  if (!dashboard) return [];
+  return dashboard.goals.map(goal => {
+    const projection = baseline?.goal_changes.find(change => change.goal_id === goal.id)?.baseline;
+    const account = dashboard.accounts.find(account => account.id === goal.funding_account_id);
+    const balance = number(account?.balance);
+    const initial = number(goal.initial_funded_amount);
+    const saved = projection ? number(projection.starting_amount) : goal.funding_account_id
+      ? balance === null || (initial !== null && initial > Math.max(0, balance)) ? null : initial ?? Math.max(0, balance)
+      : initial ?? 0;
+    const target = number(goal.target_amount);
+    return {
+      id: goal.id, title: goal.name, saved, target,
+      eta: projection?.completion_date ? displayDate(projection.completion_date) : "Unavailable",
+      growth: saved === null || target === null || target <= 0 ? null : saved / target,
+    };
+  });
+}
+
+export const useFinanceStore = create<State>((set, get) => ({
+  dashboard: null, baseline: null, baselineError: null, products: null, productsError: null,
+  status: "idle", error: null, tab: "today", sheet: null, selectedGoal: null,
+  shock: null, fixed: false, predictMode: "break", period: "Month",
+  sim: { monthly: 650, years: 8, rate: 6.5 },
+  load: async () => {
+    if (get().status !== "idle") return;
+    set({ status: "loading" });
+    try {
+      const id = await resolveCustomerId();
+      const dashboard = await api<Dashboard>(`/dashboard/${encodeURIComponent(id)}`);
+      set({ dashboard, status: "ready" });
+      void api<Risk>("/risk/predict", { customer_id: dashboard.customer.id }).then(
+        baseline => set({ baseline }),
+        error => set({ baselineError: String(error.message) }),
+      );
+      void api<Product[]>("/products").then(
+        products => set({ products }),
+        error => set({ productsError: String(error.message) }),
+      );
+    } catch (error) {
+      set({ status: "error", error: error instanceof Error ? error.message : "Could not load the financial profile." });
+    }
+  },
+  setTab: tab => set({ tab }),
+  openSheet: sheet => set({ sheet }),
+  closeSheet: () => set({ sheet: null }),
+  selectGoal: id => set({ selectedGoal: id, sheet: "goal" }),
+  inspectGoal: id => set({ selectedGoal: id, sheet: "sapling" }),
+  applyShock: id => set({ shock: id, fixed: false }),
+  fixShock: () => set({ shock: null, fixed: true }),
+  setPredictMode: predictMode => set({ predictMode }),
+  setPeriod: period => set({ period }),
+  setSim: (k, v) => set(s => ({ sim: { ...s.sim, [k]: v } })),
 }));
