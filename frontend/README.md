@@ -8,14 +8,14 @@ Mobile-first personal finance demo built with Expo, React Native, TypeScript, an
 2. Start Metro: `npx expo start`
 3. Scan the QR code with Expo Go, or press `a` for Android / `i` for iOS.
 
-To connect the merged FastAPI backend, create `frontend/.env` with:
+Start FastAPI from `backend` with `python -m uvicorn app.main:app --reload`. Create `frontend/.env.local` with:
 
 ```env
-EXPO_PUBLIC_API_BASE_URL=http://YOUR_COMPUTER_LAN_IP:8000
+EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 EXPO_PUBLIC_NESSIE_CUSTOMER_ID=your-sandbox-customer-id
 ```
 
-Use `http://127.0.0.1:8000` when running the web client on the same computer. A physical phone must use the computer's LAN address.
+For web on the same computer, run `npm run web`. For a physical phone on the same trusted Wi-Fi network, use your computer's LAN address in the Expo configuration and add `--host 0.0.0.0` to the FastAPI command. Keep the Nessie API key in the backend environment. Reload Expo after changing the customer ID.
 
 The app uses only Expo Go-compatible libraries; no custom native build or Skia is required.
 
@@ -32,7 +32,7 @@ Login and sign-up use a typed mock `AuthService`. Any valid email and password o
 - Web blur and gradients became `expo-blur` and `expo-linear-gradient`.
 - Fraunces and Inter are loaded with Expo Font while the splash screen is held.
 - The bottom navigation is a safe native custom tab bar with haptics and a raised What If action.
-- The five-stage Garden is rendered with `react-native-svg` and springs through shock and recovery states.
+- The five-stage Garden uses `react-native-svg` to show saved goal progress.
 - Added login, sign-up, recovery stub, first-goal onboarding, profile, and logout flows.
 - Added React Hook Form + Zod validation, secure password controls, loading states, and failure shake feedback.
 
@@ -40,9 +40,9 @@ Login and sign-up use a typed mock `AuthService`. Any valid email and password o
 
 - `app/` — Expo Router routes and route guards
 - `components/` — reusable native UI, screens, charts, navigation, and Garden
-- `lib/mock/` — unchanged typed finance mock engine
-- `lib/store.ts` — preserved finance Zustand store shape
+- `lib/api.ts` — FastAPI client and response types
+- `lib/store.ts` — dashboard loading and forecast state
 - `lib/auth/` — replaceable auth service and Zustand auth store
 - `lib/theme.ts` — shared colors, spacing, and radii
 
-All finance values still originate from `lib/mock`, and every primary screen identifies the content as synthetic demo data.
+The finance screens read the selected Nessie sandbox customer through FastAPI. Unavailable values reflect missing upstream data or projection inputs. The shock presets and simulator sliders are hypothetical inputs.
