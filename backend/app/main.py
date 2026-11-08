@@ -1,5 +1,12 @@
 import logging
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+# Ensure the backend directory is in sys.path when executed directly as a script
+_backend_root = str(Path(__file__).resolve().parent.parent)
+if _backend_root not in sys.path:
+    sys.path.insert(0, _backend_root)
 
 import httpx
 from fastapi import FastAPI, Request
@@ -22,23 +29,25 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
         # Nessie's query authentication would otherwise appear in HTTPX INFO request logs.
         logging.getLogger("httpx").setLevel(logging.WARNING)
         logging.getLogger("httpcore").setLevel(logging.WARNING)
-        engine, app.state.sessions = database(settings.database_url)
+        mongo_uri = settings.mongo_uri or settings.database_url
+        client, app.state.db = database(mongo_uri, settings.mongo_db_name)
+        app.state.db_client = client
         try:
-            Base.metadata.create_all(engine)
             app.state.nessie = NessieClient(settings, transport)
             try:
                 yield
             finally:
                 await app.state.nessie.close()
         finally:
-            engine.dispose()
+            if hasattr(client, "close"):
+                client.close()
 
     app = FastAPI(title="Financial Health Navigator", version="1.0.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origin_regex=r"https?://(?:localhost|127\.0\.0\.1)(?::\d+)?",
-        allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type"],
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     @app.exception_handler(NessieError)
@@ -66,3 +75,13 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
 
 
 app = create_app()
+
+
+if __name__ == "__main__":
+    import os
+    import uvicorn
+
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run("app.main:app", host=host, port=port, reload=True)
+

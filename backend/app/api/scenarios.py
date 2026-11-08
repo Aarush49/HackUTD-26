@@ -1,3 +1,6 @@
+from datetime import datetime, timezone
+from uuid import uuid4
+
 from fastapi import APIRouter, HTTPException
 
 from app.api.dependencies import DB, Nessie
@@ -15,10 +18,13 @@ async def compare_scenarios(request: ScenarioRequest, client: Nessie, db: DB) ->
     return compare(profile, goals, request)
 
 
-def saved_scenario(row: ScenarioRow) -> dict:
+def saved_scenario(doc: dict) -> dict:
     return {
-        "id": row.id, "name": row.name, "customer_id": row.customer_id,
-        "created_at": row.created_at, "parameters": row.parameters,
+        "id": doc.get("id") or str(doc.get("_id")),
+        "name": doc["name"],
+        "customer_id": doc["customer_id"],
+        "created_at": doc["created_at"],
+        "parameters": doc["parameters"],
     }
 
 
@@ -28,15 +34,23 @@ async def save_scenario(request: SavedScenarioRequest, client: Nessie, db: DB) -
     validate_inputs(profile, request.assumptions, request.decision)
     payload = request.model_dump(mode="json", exclude={"name"})
     payload["customer_id"] = profile.customer.id
-    row = ScenarioRow(customer_id=profile.customer.id, name=request.name, parameters=payload)
-    db.add(row)
-    db.commit()
-    return saved_scenario(row)
+    scenario_id = str(uuid4())
+    created_at = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "_id": scenario_id,
+        "id": scenario_id,
+        "customer_id": profile.customer.id,
+        "name": request.name,
+        "created_at": created_at,
+        "parameters": payload,
+    }
+    db["scenarios"].insert_one(doc)
+    return saved_scenario(doc)
 
 
 @router.get("/scenarios/{scenario_id}")
 def get_scenario(scenario_id: str, db: DB) -> dict:
-    row = db.get(ScenarioRow, scenario_id)
-    if row is None:
+    doc = db["scenarios"].find_one({"id": scenario_id}) or db["scenarios"].find_one({"_id": scenario_id})
+    if doc is None:
         raise HTTPException(404, "Scenario not found")
-    return saved_scenario(row)
+    return saved_scenario(doc)
