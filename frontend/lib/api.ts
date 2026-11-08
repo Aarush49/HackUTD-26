@@ -1,3 +1,6 @@
+import Constants from "expo-constants";
+import { Platform } from "react-native";
+
 type Money = string | number | null;
 
 type Customer = { id: string; first_name: string | null };
@@ -95,12 +98,95 @@ export type Product = {
   risk: string;
 };
 
-const apiOrigin = (process.env.EXPO_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+function getHostFromUri(uri?: string | null): string | null {
+  if (!uri) return null;
+  const withoutProtocol = uri.replace(/^[a-zA-Z]+:\/\//, "");
+  const hostWithPort = withoutProtocol.split("/")[0];
+  const host = hostWithPort.split(":")[0];
+  return host || null;
+}
+
+function isLoopback(hostname: string): boolean {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "0.0.0.0" ||
+    hostname === "::1" ||
+    hostname.startsWith("127.")
+  );
+}
+
+export function resolveApiOrigin(rawUrl?: string): string {
+  const configured = (rawUrl || process.env.EXPO_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+  const withProtocol = /^https?:\/\//i.test(configured) ? configured : `http://${configured}`;
+
+  try {
+    const parsed = new URL(withProtocol);
+
+    // If a non-loopback URL is explicitly configured, leave it untouched
+    if (!isLoopback(parsed.hostname)) {
+      return configured;
+    }
+
+    // 1. Web: preserve loopback on the local device, but connect to the network host on other devices
+    if (Platform.OS === "web") {
+      if (typeof window !== "undefined" && window.location?.hostname) {
+        const browserHost = window.location.hostname;
+        if (browserHost) {
+          parsed.hostname = browserHost;
+          const basePath = parsed.pathname && parsed.pathname !== "/" ? parsed.pathname.replace(/\/+$/, "") : "";
+          return `${parsed.origin}${basePath}`;
+        }
+      }
+      return configured;
+    }
+
+    // 2. Mobile / Native: discover the machine running Metro bundler
+    const hostUri =
+      Constants.expoConfig?.hostUri ??
+      (Constants as any).expoGoConfig?.debuggerHost ??
+      (Constants as any).manifest2?.extra?.expoGo?.debuggerHost ??
+      (Constants as any).manifest?.debuggerHost;
+
+    let detectedHost = getHostFromUri(hostUri);
+    if (!detectedHost) {
+      detectedHost = getHostFromUri(Constants.experienceUrl || Constants.linkingUri);
+    }
+
+    if (detectedHost) {
+      // Map loopback to the host alias if running inside an Android emulator
+      if (Platform.OS === "android" && isLoopback(detectedHost)) {
+        detectedHost = "10.0.2.2";
+      }
+      parsed.hostname = detectedHost;
+      const basePath = parsed.pathname && parsed.pathname !== "/" ? parsed.pathname.replace(/\/+$/, "") : "";
+      return `${parsed.origin}${basePath}`;
+    }
+
+    // Android emulator fallback
+    if (Platform.OS === "android") {
+      parsed.hostname = "10.0.2.2";
+      const basePath = parsed.pathname && parsed.pathname !== "/" ? parsed.pathname.replace(/\/+$/, "") : "";
+      return `${parsed.origin}${basePath}`;
+    }
+
+    return configured;
+  } catch {
+    return configured;
+  }
+}
+
+export function getApiOrigin(): string {
+  return resolveApiOrigin();
+}
+
+export const apiOrigin = getApiOrigin();
 
 export async function api<T>(path: string, body?: object, signal?: AbortSignal): Promise<T> {
+  const origin = getApiOrigin();
   let response: Response;
   try {
-    response = await fetch(`${apiOrigin}/api${path}`, {
+    response = await fetch(`${origin}/api${path}`, {
       method: body ? "POST" : "GET",
       headers: body ? { "Content-Type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
@@ -108,7 +194,7 @@ export async function api<T>(path: string, body?: object, signal?: AbortSignal):
     });
   } catch (error) {
     if (signal?.aborted) throw error;
-    throw new Error("Could not reach the financial API. Check that FastAPI is running.");
+    throw new Error(`Could not reach the financial API at ${origin}. Check that FastAPI is running.`);
   }
   if (!response.ok) {
     const payload = await response.json().catch(() => null);

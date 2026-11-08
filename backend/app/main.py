@@ -45,9 +45,9 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
     app = FastAPI(title="Financial Health Navigator", version="1.0.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origin_regex=r"https?://(?:localhost|127\.0\.0\.1)(?::\d+)?",
-        allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type"],
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     @app.exception_handler(NessieError)
@@ -78,7 +78,10 @@ app = create_app()
 
 
 if __name__ == "__main__":
+    import os
     import uvicorn
 
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run("app.main:app", host=host, port=port, reload=True)
 
