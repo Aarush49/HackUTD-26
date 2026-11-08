@@ -1,1 +1,2 @@
-import{GoalsScreen}from"@/components/screens";export default GoalsScreen;
+import { GoalsScreen } from '@/components/screens';
+export default GoalsScreen;

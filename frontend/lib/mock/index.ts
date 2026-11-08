@@ -1,2 +1,2 @@
-export * from "./types";
-export { mockData } from "./data";
+export * from './types';
+export { mockData } from './data';

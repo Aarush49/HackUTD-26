@@ -1,1 +1,2 @@
-import{TodayScreen}from"@/components/screens";export default TodayScreen;
+import { TodayScreen } from '@/components/screens';
+export default TodayScreen;

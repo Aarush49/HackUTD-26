@@ -1,1 +1,2 @@
-import{ImpactScreen}from"@/components/screens";export default ImpactScreen;
+import { ImpactScreen } from '@/components/screens';
+export default ImpactScreen;
