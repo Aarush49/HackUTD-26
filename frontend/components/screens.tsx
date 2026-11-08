@@ -43,10 +43,8 @@ import { BrandHeader } from './BrandHeader';
 
 function ScreenShell({ children }: { children: ReactNode }) {
   const insets = useSafeAreaInsets();
-  const [titleHeight, setTitleHeight] = useState(170);
   const segments = useSegments();
   const insideTabs = segments[0] === '(tabs)';
-  const items = React.Children.toArray(children);
   const titleTop = insets.top + 64;
   return (
     <SkyBackground>
@@ -56,23 +54,19 @@ function ScreenShell({ children }: { children: ReactNode }) {
           <BrandHeader compact />
         </View>
       )}
-      <View
-        pointerEvents="box-none"
-        onLayout={(event) => setTitleHeight(event.nativeEvent.layout.height)}
-        style={[s.fixedTitle, { top: titleTop }]}
-      >
-        {items[0]}
-      </View>
       <ScrollView
-        style={[s.scroller, { top: titleTop + titleHeight }]}
+        style={s.scroller}
         contentContainerStyle={[
           s.screen,
-          { paddingBottom: insets.bottom + 104 },
+          {
+            paddingTop: titleTop,
+            paddingBottom: insets.bottom + 104,
+          },
         ]}
         contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
       >
-        {items.slice(1)}
+        {children}
       </ScrollView>
     </SkyBackground>
   );
@@ -156,7 +150,7 @@ export function TodayScreen() {
         </BigNumber>
       </Card>
       <Pressable onPress={() => selectGoal(goal.id)}>
-        <Card>
+        <Card style={{ marginTop: 18 }}>
           <View style={s.between}>
             <View style={{ flex: 1 }}>
               <Eyebrow>NEXT GOAL</Eyebrow>
@@ -557,9 +551,8 @@ function Advice() {
 
 const s = StyleSheet.create({
   screen: { paddingHorizontal: 16 },
-  scroller: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  scroller: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
   standaloneHeader: { position: 'absolute', left: 16, zIndex: 3 },
-  fixedTitle: { position: 'absolute', left: 16, right: 16, zIndex: 2 },
   between: {
     flexDirection: 'row',
     alignItems: 'center',

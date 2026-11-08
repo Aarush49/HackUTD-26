@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleProp,
   StyleSheet as NativeStyleSheet,
@@ -36,7 +37,12 @@ export function Card({
   return onClick ? (
     <Pressable
       onPress={onClick}
-      style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.99 : 1 }] })}
+      style={({ pressed }) => [
+        { transform: [{ scale: pressed ? 0.99 : 1 }] },
+        Platform.OS === 'web'
+          ? ({ outlineStyle: 'none', boxShadow: 'none' } as any)
+          : null,
+      ]}
     >
       {body}
     </Pressable>
@@ -439,19 +445,26 @@ export function ChunkySlider({
 export function BottomSheet() {
   return null;
 }
+export function TrustTag() {
+  return null;
+}
 const s = StyleSheet.create({
   card: {
     overflow: 'hidden',
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,.95)',
+    borderColor: '#CDE4EE',
+    borderStyle: 'solid',
     padding: 18,
     backgroundColor: 'rgba(255,255,255,.58)',
-    shadowColor: colors.sky,
-    shadowOpacity: 0.14,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 3,
+    elevation: 0,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    ...(Platform.OS === 'web'
+      ? { outlineStyle: 'none', boxShadow: 'none' }
+      : {}),
   },
   cardOverlay: {
     ...StyleSheet.absoluteFillObject,
