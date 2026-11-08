@@ -3,21 +3,9 @@ import { MockData } from "./types";
 export const mockData: MockData = {
   profile: { name: "Jordan", demoTag: "Synthetic demo data", todayLabel: "SATURDAY · NOVEMBER 7" },
   today: {
-    gardenDelta: 8,
-    timeline: [
-      { day: "NOV 08", label: "Payday", amount: 2850, kind: "good" },
-      { day: "NOV 14", label: "Rent + bills", amount: -2140, kind: "bill" },
-      { day: "NOV 22", label: "Cash low point", amount: 680, kind: "low" },
-      { day: "DEC 01", label: "Payday", amount: 2850, kind: "good" }
-    ],
     headline: "Fed signals a slower path for rate cuts"
   },
   picture: {
-    netPosition: 48240, change: 4.8,
-    chart: [
-      { label: "Jun", value: 40100 }, { label: "Jul", value: 41800 }, { label: "Aug", value: 43500 }, { label: "Sep", value: 44900 },
-      { label: "Oct", value: 46600, projected: 46600 }, { label: "Now", value: 48240, projected: 48240 }, { label: "Dec", projected: 50100 }, { label: "Jan", projected: 51600 }
-    ],
     periods: {
       Week: {
         netPosition: 48240, change: 0.7,
@@ -54,15 +42,11 @@ export const mockData: MockData = {
     { id: "home", title: "Home cushion", saved: 12800, target: 18000, eta: "Aug 04, 2027", growth: .72, note: "Steady—your runway is holding above five months." },
     { id: "car", title: "Next car", saved: 3600, target: 14000, eta: "Nov 20, 2028", growth: .29, note: "Down 3% after a higher repair estimate." }
   ],
-  shocks: [
-    { id: "repair", title: "Car repair", amount: 2400, detail: "One surprise, due today" },
-    { id: "income", title: "Lose income", amount: 5700, detail: "60 days without pay" },
-    { id: "rent", title: "Rent rises", amount: 2400, detail: "$200 more for 12 months" }
-  ],
-  waterfall: [
-    { name: "Checking", amount: 680, cost: "$0 cost", color: "#38BDF8" },
-    { name: "Savings", amount: 1420, cost: "$62 lost interest", color: "#7DD3FC" },
-    { name: "Credit", amount: 300, cost: "$71 interest", color: "#FBBF24" }
+  losses: [
+    { id: "card-interest", title: "Card interest", minimum: 420, maximum: 610, reason: "Your travel card balance is carrying a high estimated rate.", action: "Pay the highest-rate balance first." },
+    { id: "idle-cash", title: "Idle cash", minimum: 180, maximum: 290, reason: "Part of your cash may earn less than the estimated inflation rate.", action: "Compare insured higher-yield cash options." },
+    { id: "fees", title: "Account fees", minimum: 96, maximum: 144, reason: "Recurring account and service fees reduce the balance over time.", action: "Review and cancel avoidable fees." },
+    { id: "headline-income", title: "Income pressure", minimum: 300, maximum: 650, reason: "The selected headline may soften near-term income growth.", action: "Keep more of the monthly contribution liquid." }
   ],
   simulate: { monthly: 650, years: 8, rate: 6.5, plans: [
     { name: "Keep cash", color: "#94A3B8", points: [{label:"Now",value:15000},{label:"2y",value:31000},{label:"4y",value:47000},{label:"6y",value:63000},{label:"8y",value:79000}] },
@@ -72,6 +56,7 @@ export const mockData: MockData = {
   impact: {
     headlines: ["Fed holds rates", "Inflation cools", "Oil prices climb"], active: "Fed holds rates",
     rows: [
+      { label: "Income", before: "$5,700 est.", after: "$5,520 est.", range: "-$120–$260 estimated" },
       { label: "Savings APY", before: "4.35% est.", after: "4.10% est.", range: "3.90–4.30% estimated" },
       { label: "Card APR", before: "22.4% est.", after: "22.1% est.", range: "21.8–22.4% estimated" },
       { label: "Japan goal", before: "Apr 18 est.", after: "Apr 27 est.", range: "+6–12 days estimated" }

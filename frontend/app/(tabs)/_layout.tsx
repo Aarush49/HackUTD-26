@@ -18,7 +18,7 @@ export default function TabsLayout() {
   const snapPoints = useMemo(() => ["45%", "92%"], []);
   const goal = data.goals.find(item => item.id === selectedGoal);
   useEffect(() => { sheet ? ref.current?.snapToIndex(sheet === "goal" ? 1 : 0) : ref.current?.close(); }, [sheet]);
-  function go(path: "/impact" | "/(tabs)/predict", params?: { headline: string }) { closeSheet(); router.push(params ? { pathname: path, params } : path); }
+  function go(path: "/impact", params: { headline: string }) { closeSheet(); router.push({ pathname: path, params }); }
   return <><Tabs tabBar={props => <TabBar {...props}/>} screenOptions={{
     headerShown: true,
     headerTransparent: true,

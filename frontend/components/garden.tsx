@@ -10,14 +10,13 @@ import { colors } from "@/lib/theme";
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function Sapling({ goal, ambient = false, compact = false, onPress }: { goal: Pick<Goal, "title" | "growth">; ambient?: boolean; compact?: boolean; onPress?: () => void }) {
-  const shock = useFinanceStore(state => state.shock);
   const [reduceMotion, setReduceMotion] = useState(false);
   useEffect(() => { AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion); }, []);
-  const growth = Math.max(.08, Math.min(1, goal.growth - (shock ? .22 : 0)));
+  const growth = Math.max(.08, Math.min(1, goal.growth));
   const stage = Math.min(4, Math.floor(growth * 5));
   const height = compact ? 70 : ambient ? 155 : 112;
   const crown = 15 + stage * 5;
-  const droop = shock ? 10 : 0;
+  const droop = 0;
   const scale = useSharedValue(.78 + growth * .22);
   const rotation = useSharedValue(droop);
   useEffect(() => {
