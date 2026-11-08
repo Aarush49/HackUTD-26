@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   Pressable,
@@ -8,9 +8,15 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { router, useLocalSearchParams, useSegments } from 'expo-router';
+import {
+  router,
+  useFocusEffect,
+  useLocalSearchParams,
+  useSegments,
+} from 'expo-router';
 import {
   ArrowRight,
+  ChevronLeft,
   ChevronRight,
   CircleDollarSign,
   Landmark,
@@ -30,7 +36,6 @@ import {
   BigNumber,
   Button3D,
   Card,
-  ChunkySlider,
   Eyebrow,
   Heading,
   LineChartWithNodes,
@@ -41,6 +46,7 @@ import { GardenLayer, Sapling } from './garden';
 import { SkyBackground } from './Background';
 import { BrandHeader } from './BrandHeader';
 import { PersonalNews } from './PersonalNews';
+import { MotionReveal } from './MotionReveal';
 
 export function ScreenShell({ children }: { children: ReactNode }) {
   const insets = useSafeAreaInsets();
@@ -52,6 +58,21 @@ export function ScreenShell({ children }: { children: ReactNode }) {
       <GardenLayer />
       {!insideTabs && (
         <View style={[s.standaloneHeader, { top: insets.top + 10 }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)');
+              }
+            }}
+            style={s.backPill}
+          >
+            <ChevronLeft size={18} color={colors.ink} />
+            <Text style={s.backPillText}>Back</Text>
+          </Pressable>
           <BrandHeader compact />
         </View>
       )}
@@ -65,6 +86,7 @@ export function ScreenShell({ children }: { children: ReactNode }) {
           },
         ]}
         contentInsetAdjustmentBehavior="never"
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         {children}
@@ -85,7 +107,7 @@ export function ScreenIntro({
   sub?: string;
 }) {
   return (
-    <View style={{ marginBottom: 20 }}>
+    <MotionReveal style={{ marginBottom: 20 }}>
       {eyebrow ? (
         <View style={s.between}>
           <Eyebrow>{eyebrow}</Eyebrow>
@@ -93,7 +115,7 @@ export function ScreenIntro({
       ) : null}
       <Heading accent={accent}>{title}</Heading>
       {sub && <Text style={s.sub}>{sub}</Text>}
-    </View>
+    </MotionReveal>
   );
 }
 
@@ -122,8 +144,7 @@ export function ProgressRing({ progress }: { progress?: number }) {
           strokeLinecap="round"
           strokeDasharray={`${circumference} ${circumference}`}
           strokeDashoffset={circumference * (1 - value)}
-          rotation="-90"
-          origin="31,31"
+          transform="rotate(-90 31 31)"
         />
       </Svg>
       <Text style={s.ringText}>
@@ -132,8 +153,6 @@ export function ProgressRing({ progress }: { progress?: number }) {
     </View>
   );
 }
-
-export { TodayScreen } from './TodayScreen';
 
 export function PictureScreen() {
   const { data, period, setPeriod } = useFinanceStore();
@@ -148,31 +167,37 @@ export function PictureScreen() {
         accent="together."
         sub="Assets, debts and momentum—without the noise."
       />
-      <SegmentedPill
-        options={['Week', 'Month', 'Year'] as const}
-        value={period}
-        onChange={setPeriod}
-      />
-      <Card>
-        <Eyebrow>NET POSITION · ESTIMATED</Eyebrow>
-        <View style={s.between}>
-          <BigNumber>{money(selected.netPosition)}</BigNumber>
-          <Badge tone="green">
-            ↗ {selected.change === undefined ? '—' : `${selected.change}%`}
-          </Badge>
-        </View>
-        <LineChartWithNodes
-          key={period}
-          data={selected.chart}
-          lines={[
-            { key: 'value', color: colors.ink },
-            { key: 'projected', color: colors.pink, dashed: true },
-          ]}
+      <MotionReveal beat="second">
+        <SegmentedPill
+          options={['Week', 'Month', 'Year'] as const}
+          value={period}
+          onChange={setPeriod}
         />
-        <Text style={s.small}>
-          Solid history · dotted projection · {period.toLowerCase()} view
-        </Text>
-      </Card>
+      </MotionReveal>
+      <MotionReveal beat="third">
+        <Card>
+          <Eyebrow>PROJECTED NET POSITION</Eyebrow>
+          <View style={s.between}>
+            <BigNumber>{money(selected.projectedBalance)}</BigNumber>
+            <Badge tone={(selected.change ?? 0) < 0 ? 'amber' : 'green'}>
+              {selected.change === undefined
+                ? '—'
+                : `${selected.change > 0 ? '+' : ''}${selected.change}%`}
+            </Badge>
+          </View>
+          <LineChartWithNodes
+            key={period}
+            data={selected.chart}
+            lines={[
+              { key: 'value', color: colors.ink },
+              { key: 'projected', color: colors.pink, dashed: true },
+            ]}
+          />
+          <Text style={s.small}>
+            Solid history · dotted projection · {period.toLowerCase()} view
+          </Text>
+        </Card>
+      </MotionReveal>
       <View style={s.stats}>
         <StatTile label="RUNWAY" value={picture.health.runway} />
         <StatTile
@@ -256,14 +281,13 @@ function PredictorPanel() {
           </View>
         </Card>
       ))}
-      <Advice />
     </>
   );
 }
 
 function SimulationPanel() {
-  const { data, sim, setSim } = useFinanceStore();
-  const { plans, settings } = data.simulate;
+  const { data, sim } = useFinanceStore();
+  const { plans } = data.simulate;
   const chart = sim ? simulationChart(data.simulate, sim) : [];
   const final = chart.at(-1);
   return (
@@ -295,38 +319,6 @@ function SimulationPanel() {
           ))}
         </View>
       </Card>
-      {settings && sim && (
-        <Card style={{ marginTop: 16 }}>
-          <ChunkySlider
-            label="Monthly amount"
-            value={sim.monthly}
-            min={settings.monthly.min}
-            max={settings.monthly.max}
-            step={settings.monthly.step}
-            suffix=" / mo"
-            onChange={(value) => setSim('monthly', value)}
-          />
-          <ChunkySlider
-            label="Years"
-            value={sim.years}
-            min={settings.years.min}
-            max={settings.years.max}
-            step={settings.years.step}
-            suffix=" yr"
-            onChange={(value) => setSim('years', value)}
-          />
-          <ChunkySlider
-            label="Estimated return"
-            value={sim.rate}
-            min={settings.rate.min}
-            max={settings.rate.max}
-            step={settings.rate.step}
-            suffix="%"
-            onChange={(value) => setSim('rate', value)}
-          />
-        </Card>
-      )}
-      <Advice />
     </>
   );
 }
@@ -341,18 +333,40 @@ export function PredictScreen() {
         accent="useful."
         sub="Stress test today, or sketch a longer tomorrow."
       />
-      <SegmentedPill
-        options={['news', 'predict', 'simulate'] as const}
-        value={predictMode}
-        onChange={setPredictMode}
-      />
-      {predictMode === 'news' ? <PersonalNews /> : predictMode === 'predict' ? <PredictorPanel /> : <SimulationPanel />}
+      <MotionReveal beat="second">
+        <SegmentedPill
+          options={['news', 'predict', 'simulate'] as const}
+          value={predictMode}
+          onChange={setPredictMode}
+        />
+      </MotionReveal>
+      <MotionReveal key={predictMode} beat="third">
+        {predictMode === 'news' ? (
+          <PersonalNews />
+        ) : predictMode === 'predict' ? (
+          <PredictorPanel />
+        ) : (
+          <SimulationPanel />
+        )}
+      </MotionReveal>
     </ScreenShell>
   );
 }
 
 export function GoalsScreen() {
-  const { data, selectGoal } = useFinanceStore();
+  const { data, selectGoal, loadGoals } = useFinanceStore();
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [retry, setRetry] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      const controller = new AbortController();
+      setLoadFailed(false);
+      void loadGoals(controller.signal).catch(() => {
+        if (!controller.signal.aborted) setLoadFailed(true);
+      });
+      return () => controller.abort();
+    }, [loadGoals, retry])
+  );
   return (
     <ScreenShell>
       <ScreenIntro
@@ -361,6 +375,21 @@ export function GoalsScreen() {
         accent="roots."
         sub="Every contribution helps something take shape."
       />
+      <MotionReveal beat="second" style={{ marginBottom: 13 }}>
+        <Button3D onClick={() => router.push('/create-goal')}>
+          Create a goal
+        </Button3D>
+      </MotionReveal>
+      {loadFailed && (
+        <Card style={{ marginBottom: 13 }}>
+          <Text accessibilityRole="alert" style={s.small}>
+            Could not load saved goals.
+          </Text>
+          <Button3D tone="white" onClick={() => setRetry((count) => count + 1)}>
+            Retry
+          </Button3D>
+        </Card>
+      )}
       {data.goals.map((goal) => (
         <Pressable key={goal.id} onPress={() => selectGoal(goal.id)}>
           <Card style={{ marginBottom: 13 }}>
@@ -384,7 +413,6 @@ export function GoalsScreen() {
           </Card>
         </Pressable>
       ))}
-      <Advice />
     </ScreenShell>
   );
 }
@@ -404,17 +432,19 @@ export function ImpactScreen() {
         accent="you."
         sub="A plain-language estimate—not a prediction."
       />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: 6, marginBottom: 14 }}
-      >
-        {data.impact.headlines.map((item) => (
-          <Pressable key={item} onPress={() => setHeadline(item)}>
-            <Badge tone={headline === item ? 'pink' : 'blue'}>{item}</Badge>
-          </Pressable>
-        ))}
-      </ScrollView>
+      <MotionReveal beat="second">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 6, marginBottom: 14 }}
+        >
+          {data.impact.headlines.map((item) => (
+            <Pressable key={item} onPress={() => setHeadline(item)}>
+              <Badge tone={headline === item ? 'pink' : 'blue'}>{item}</Badge>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </MotionReveal>
       <Card>
         <Eyebrow>PASTE A HEADLINE</Eyebrow>
         <View style={[s.row, { marginTop: 10 }]}>
@@ -436,29 +466,29 @@ export function ImpactScreen() {
       <Title eyebrow="WHAT THIS MEANS FOR YOU">
         Small shifts, shown honestly.
       </Title>
-      <Card>
-        {impactRows(snapshot, headline).map((row) => (
-          <View key={row.label} style={s.impact}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.strong}>{row.label}</Text>
-              <Text style={s.mini}>{row.range}</Text>
+      <MotionReveal key={headline} beat="update">
+        <Card>
+          {impactRows(snapshot, headline).map((row) => (
+            <View key={row.label} style={s.impact}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.strong}>{row.label}</Text>
+                <Text style={s.mini}>{row.range}</Text>
+              </View>
+              <Text style={s.small}>{row.before}</Text>
+              <ArrowRight size={14} color={colors.muted} />
+              <Text style={s.strong}>{row.after}</Text>
             </View>
-            <Text style={s.small}>{row.before}</Text>
-            <ArrowRight size={14} color={colors.muted} />
-            <Text style={s.strong}>{row.after}</Text>
-          </View>
-        ))}
-      </Card>
+          ))}
+        </Card>
+      </MotionReveal>
       <Card style={{ marginTop: 16 }}>
         <View style={s.row}>
           <TrendingUp color={colors.ink} />
           <Text style={[s.small, { flex: 1 }]}>
-            These ranges are estimates based on the selected demo headline:{' '}
-            {headline}.
+            These ranges are estimates.
           </Text>
         </View>
       </Card>
-      <Advice />
     </ScreenShell>
   );
 }
@@ -477,14 +507,38 @@ function Title({
     </View>
   );
 }
-function Advice() {
-  return <Text style={s.advice}>Informational, not financial advice.</Text>;
-}
-
 const s = StyleSheet.create({
   screen: { paddingHorizontal: 16 },
   scroller: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
-  standaloneHeader: { position: 'absolute', left: 16, zIndex: 3 },
+  standaloneHeader: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    zIndex: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.9)',
+    shadowColor: '#0B3A5B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+  },
+  backPillText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 13,
+    color: colors.ink,
+  },
   between: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -604,12 +658,5 @@ const s = StyleSheet.create({
     gap: 7,
     borderBottomWidth: 1,
     borderColor: 'rgba(11,58,91,.1)',
-  },
-  advice: {
-    fontFamily: 'Inter_400Regular',
-    textAlign: 'center',
-    fontSize: 9,
-    color: colors.muted,
-    margin: 20,
   },
 });

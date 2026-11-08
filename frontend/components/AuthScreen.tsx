@@ -10,18 +10,20 @@ import {
   View,
 } from 'react-native';
 import Animated, {
+  ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
 import { Link } from 'expo-router';
-import { CheckSquare, Eye, EyeOff, Square } from 'lucide-react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkyBackground } from './Background';
+import { MotionReveal } from './MotionReveal';
 import { Sapling } from './garden';
 import { Button3D, Card, Eyebrow, Heading } from './ui';
 import { useAuthStore } from '@/lib/auth/store';
@@ -37,7 +39,6 @@ const signupSchema = z
     email: z.email('Enter a valid email'),
     password: z.string().min(8, 'Use at least 8 characters'),
     confirm: z.string(),
-    terms: z.boolean().refine(Boolean, 'Please accept the terms'),
   })
   .refine((v) => v.password === v.confirm, {
     message: 'Passwords do not match',
@@ -48,7 +49,6 @@ type Values = {
   email: string;
   password: string;
   confirm?: string;
-  terms?: boolean;
 };
 
 export function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
@@ -73,7 +73,6 @@ export function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
       email: '',
       password: '',
       confirm: '',
-      terms: false,
     },
   });
   const vals = watch();
@@ -92,6 +91,7 @@ export function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
         : await login({ email: v.email, password: v.password });
     } catch {
       shake.value = withSequence(
+        ReduceMotion.System,
         withTiming(-9),
         withTiming(9),
         withTiming(-6),
@@ -157,7 +157,7 @@ export function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
           ]}
         >
           <View style={s.trust} />
-          <View style={s.top}>
+          <MotionReveal style={s.top}>
             <View>
               <Eyebrow>
                 {signup ? 'PLANT YOUR FIRST PLAN' : 'WELCOME TO CANOPY'}
@@ -174,90 +174,70 @@ export function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
               }}
               onPress={() => {}}
             />
-          </View>
-          <Animated.View style={animated}>
-            <Card>
-              {signup &&
-                field('name', 'Name', {
-                  textContentType: 'name',
-                  autoComplete: 'name',
-                })}
-              {field('email', 'Email', {
-                keyboardType: 'email-address',
-                autoCapitalize: 'none',
-                textContentType: 'emailAddress',
-                autoComplete: 'email',
-              })}
-              {field('password', 'Password', {
-                secureTextEntry: secure,
-                textContentType: signup ? 'newPassword' : 'password',
-                autoComplete: signup ? 'new-password' : 'current-password',
-              })}
-              {signup && (
-                <>
-                  <Text style={s.hint}>
-                    Strength: use 8+ characters and something memorable.
-                  </Text>
-                  {field('confirm', 'Confirm password', {
-                    secureTextEntry: true,
-                    textContentType: 'newPassword',
+          </MotionReveal>
+          <MotionReveal beat="second">
+            <Animated.View style={animated}>
+              <Card>
+                {signup &&
+                  field('name', 'Name', {
+                    textContentType: 'name',
+                    autoComplete: 'name',
                   })}
-                  <Controller
-                    control={control}
-                    name="terms"
-                    render={({ field: { value, onChange } }) => (
-                      <>
-                        <Pressable
-                          onPress={() => onChange(!value)}
-                          style={s.check}
-                        >
-                          {value ? (
-                            <CheckSquare color={colors.pink} />
-                          ) : (
-                            <Square color={colors.muted} />
-                          )}
-                          <Text style={s.checkText}>
-                            I agree to the demo terms and privacy notice.
-                          </Text>
-                        </Pressable>
-                        {errors.terms && (
-                          <Text style={s.error}>{errors.terms.message}</Text>
-                        )}
-                      </>
-                    )}
-                  />
-                </>
-              )}
-              {!signup && (
-                <Link href="/(auth)/forgot" style={s.forgot}>
-                  Forgot password?
-                </Link>
-              )}
-              <Button3D disabled={!isValid} loading={loading} onClick={submit}>
-                {signup ? 'Create account' : 'Log in'}
-              </Button3D>
-              <View style={s.divider}>
-                <View />
-                <Text>or</Text>
-                <View />
-              </View>
-              <Button3D tone="white">Continue with Apple</Button3D>
-              <View style={{ height: 10 }} />
-              <Button3D tone="white">Continue with Google</Button3D>
-              <Text style={s.switch}>
-                {signup ? 'Already have an account? ' : 'New here? '}
-                <Link
-                  href={signup ? '/(auth)/login' : '/(auth)/signup'}
-                  style={s.switchLink}
+                {field('email', 'Email', {
+                  keyboardType: 'email-address',
+                  autoCapitalize: 'none',
+                  textContentType: 'emailAddress',
+                  autoComplete: 'email',
+                })}
+                {field('password', 'Password', {
+                  secureTextEntry: secure,
+                  textContentType: signup ? 'newPassword' : 'password',
+                  autoComplete: signup ? 'new-password' : 'current-password',
+                })}
+                {signup && (
+                  <>
+                    <Text style={s.hint}>
+                      Strength: use 8+ characters and something memorable.
+                    </Text>
+                    {field('confirm', 'Confirm password', {
+                      secureTextEntry: true,
+                      textContentType: 'newPassword',
+                    })}
+                  </>
+                )}
+                {!signup && (
+                  <Link href="/(auth)/forgot" style={s.forgot}>
+                    Forgot password?
+                  </Link>
+                )}
+                <Button3D
+                  disabled={!isValid}
+                  loading={loading}
+                  onClick={submit}
                 >
-                  {signup ? 'Log in' : 'Create account'}
-                </Link>
-              </Text>
-            </Card>
-          </Animated.View>
-          <Text style={s.footer}>
-            Synthetic demo data. Informational, not financial advice.
-          </Text>
+                  {signup ? 'Create account' : 'Log in'}
+                </Button3D>
+                <View style={s.divider}>
+                  <View />
+                  <Text>or</Text>
+                  <View />
+                </View>
+                <Button3D tone="white">Continue with Apple</Button3D>
+                <View style={{ height: 10 }} />
+                <Button3D tone="white">Continue with Google</Button3D>
+                <Text style={s.switch}>
+                  {signup ? 'Already have an account? ' : 'New here? '}
+                  <Link
+                    href={signup ? '/(auth)/login' : '/(auth)/signup'}
+                    style={s.switchLink}
+                  >
+                    {signup ? 'Log in' : 'Create account'}
+                  </Link>
+                </Text>
+              </Card>
+            </Animated.View>
+          </MotionReveal>
+          <Text style={s.footer}>Synthetic demo data.</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SkyBackground>
@@ -310,19 +290,6 @@ const s = StyleSheet.create({
     color: colors.green,
     marginTop: -6,
     marginBottom: 10,
-  },
-  check: {
-    minHeight: 44,
-    flexDirection: 'row',
-    gap: 9,
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  checkText: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 11,
-    color: colors.muted,
-    flex: 1,
   },
   divider: {
     flexDirection: 'row',

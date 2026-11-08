@@ -8,6 +8,7 @@ export type NewsRuntime = {
   api: <T>(path: string, body?: object, signal?: AbortSignal) => Promise<T>;
   displayDate: (value: string | null | undefined) => string;
   goalNames: string[];
+  fixedGoals?: boolean;
   ui: {
     Card: ComponentType<{ children: ReactNode; style?: StyleProp<ViewStyle> }>;
     Eyebrow: ComponentType<{ children: ReactNode }>;
@@ -40,7 +41,7 @@ function Field({ label, value, set }: { label: string; value: string; set: (valu
 }
 
 export function NewsSetup({ customerId, onSaved }: { customerId: string; onSaved: () => void }) {
-  const { api, displayDate, goalNames } = useNewsRuntime();
+  const { api, displayDate, goalNames, fixedGoals } = useNewsRuntime();
   const [goals, setGoals] = useState("");
   const [topics, setTopics] = useState("");
   const [destination, setDestination] = useState("");
@@ -74,7 +75,7 @@ export function NewsSetup({ customerId, onSaved }: { customerId: string; onSaved
     if (saving.current) return;
     saving.current = true; setBusy(true); setError("");
     try {
-      const goalList = split(goals), topicList = split(topics);
+      const goalList = fixedGoals ? goalNames : split(goals), topicList = split(topics);
       if (!goalList.length && !topicList.length && !destination.trim()) throw new Error("Add at least one goal, destination, or topic.");
       if (goalList.length > 5 || topicList.length > 8 || [...goalList, ...topicList].some(v => v.length > 80)) throw new Error("Use up to 5 goals and 8 topics, each under 80 characters.");
       await api<Preferences>("/news/preferences", { customer_id: customerId, goals: goalList, topics: topicList, destination, timeframe });
@@ -85,7 +86,9 @@ export function NewsSetup({ customerId, onSaved }: { customerId: string; onSaved
   const selected = split(topics);
   return <Card><Eyebrow>YOUR WORLD, YOUR CHOICE</Eyebrow><Text style={s.title}>What matters to you?</Text>
     <View style={{ gap: 14 }}>
-      <Field label="What are your goals? (separate with commas)" value={goals} set={setGoals}/>
+      {fixedGoals
+        ? <View><Text style={s.label}>News goals</Text><Text style={s.copy}>{goalNames.join(" · ")}</Text></View>
+        : <Field label="What are your goals? (separate with commas)" value={goals} set={setGoals}/>}
       <Field label="What news topics should we watch? (separate with commas)" value={topics} set={setTopics}/>
       <Field label="Any destination or place?" value={destination} set={setDestination}/>
       <Field label="When are you planning this?" value={timeframe} set={setTimeframe}/>
@@ -97,7 +100,7 @@ export function NewsSetup({ customerId, onSaved }: { customerId: string; onSaved
         style={[s.choice, selected.includes(item.topic) && { borderColor: colors.pink }]}>
         <Text style={s.label}>{selected.includes(item.topic) ? "✓ " : "＋ "}{item.topic}</Text><Text style={s.copy}>{item.purchase_count} purchases · most recent {displayDate(item.latest_date)}</Text>
       </Pressable>)}
-      <Text style={s.copy}>Only the topics you save are used. Search terms go to News API; approved preferences and article snippets go to Gemini. No balances or raw purchases are shared.</Text>
+      <Text style={s.copy}>Search terms go to News API. News interests and article snippets go to Gemini. No balances or raw purchases are shared.</Text>
       {!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
       <Button3D loading={busy} disabled={!loaded || suggesting} onClick={() => void save()}>Save my news interests</Button3D>
     </View>
@@ -123,7 +126,7 @@ export function PersonalNews({ customerId }: { customerId: string }) {
     } catch (reason) { if (request.current === controller) setError(controller.signal.aborted ? "The news check timed out. Please retry." : reason instanceof Error ? reason.message : "News could not be loaded."); }
     finally { clearTimeout(timeout); if (request.current === controller) { request.current = null; setBusy(false); } }
   }
-  return <View style={{ gap: 14 }}><Text style={s.copy}>News chosen around the goals and interests you approve. Developer-plan articles can be delayed by 24 hours.</Text>
+  return <View style={{ gap: 14 }}>
     <Button3D tone="white" disabled={busy} onClick={() => setSetup(value => !value)}>{setup ? "Close news setup" : "Set up or edit my news interests"}</Button3D>
     {setup && <NewsSetup customerId={customerId} onSaved={() => { setSetup(false); setFeed(null); setError(""); }}/>}
     <Button3D loading={busy} onClick={() => void check()}>Get news for me</Button3D>

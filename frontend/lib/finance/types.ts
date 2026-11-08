@@ -26,6 +26,7 @@ export type ProjectedLoss = {
 };
 export type PicturePeriod = {
   netPosition?: number;
+  projectedBalance?: number;
   change?: number;
   chart: ChartPoint[];
 };

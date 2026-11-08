@@ -1,4 +1,6 @@
 import type { NessieSnapshot } from './api';
+import { number } from '@/lib/api';
+import type { Goal as SavedGoal } from '@/lib/api';
 import type { FinanceData, PicturePeriod, Simulation } from './types';
 
 const monthDays = 365.25 / 12;
@@ -27,8 +29,8 @@ const accountRows = [
 ];
 const goalRows = [
   { id: 'japan', title: 'Japan in spring' },
-  { id: 'home', title: 'Home cushion' },
-  { id: 'car', title: 'Next car' },
+  { id: 'home', title: 'Buy a house' },
+  { id: 'car', title: 'New car' },
 ];
 const headline = 'Fed signals a slower path for rate cuts';
 const plans = [
@@ -46,7 +48,10 @@ export const money = (value: number | undefined) =>
         maximumFractionDigits: 0,
       }).format(value);
 
-export function buildData(snapshot?: NessieSnapshot): FinanceData {
+export function buildData(
+  snapshot?: NessieSnapshot,
+  savedGoals: SavedGoal[] = []
+): FinanceData {
   const inputs = snapshot?.inputs;
   const accounts = accountRows.map(({ nessieType, ...row }) => {
     const matching =
@@ -139,12 +144,14 @@ export function buildData(snapshot?: NessieSnapshot): FinanceData {
     showNow: boolean
   ): PicturePeriod {
     const first = balanceAt(history[0]);
+    const projectedBalance = balanceAt(future);
     const change =
-      first && netPosition !== undefined
-        ? Math.round(((netPosition - first) / Math.abs(first)) * 1000) / 10
+      first && projectedBalance !== undefined
+        ? Math.round(((projectedBalance - first) / Math.abs(first)) * 1000) / 10
         : undefined;
     return {
       netPosition,
+      projectedBalance,
       change,
       chart: [...history, future].map((days, index) => {
         const value = balanceAt(days);
@@ -179,6 +186,31 @@ export function buildData(snapshot?: NessieSnapshot): FinanceData {
       note: notes[row.id],
     };
   });
+  for (const goal of savedGoals) {
+    const target = number(goal.target_amount) ?? undefined;
+    const balance = snapshot?.accounts.find(
+      ({ id }) => id === goal.funding_account_id
+    )?.balance;
+    const accountSavings = balance == null ? undefined : Math.max(0, balance);
+    const saved =
+      number(goal.initial_funded_amount) ??
+      (goal.funding_account_id ? accountSavings : 0);
+    goals.push({
+      id: goal.id,
+      title: goal.name,
+      target,
+      saved,
+      eta: goal.target_date
+        ? formatDate(dateAt(goal.target_date), {
+            month: 'short',
+            day: '2-digit',
+            year: 'numeric',
+          })
+        : '—',
+      growth: target && saved !== undefined ? saved / target : 0,
+      note: `${money(number(goal.monthly_contribution) ?? undefined)} planned per month.`,
+    });
+  }
   const risk = inputs?.risk;
   const card = accounts.find(({ id }) => id === 'cc');
   const cardInterest =
@@ -237,7 +269,7 @@ export function buildData(snapshot?: NessieSnapshot): FinanceData {
 
   return {
     profile: {
-      name: 'Jordan',
+      name: 'Kaartik',
       todayLabel:
         today.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase() +
         ' · ' +
