@@ -1,3 +1,428 @@
+import React, { useCallback, useState } from 'react';
+import type { ReactNode } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import {
+  router,
+  useFocusEffect,
+  useLocalSearchParams,
+  useSegments,
+} from 'expo-router';
+import {
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  TrendingUp,
+} from 'lucide-react-native';
+import Svg, { Circle } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { impactRows, money, simulationChart } from '@/lib/finance/data';
+import { useFinanceStore } from '@/lib/store';
+import { colors } from '@/lib/theme';
+import {
+  Badge,
+  BalanceAreaChart,
+  Button3D,
+  Card,
+  Eyebrow,
+  Heading,
+  SegmentedPill,
+} from './ui';
+import { GardenLayer, Sapling } from './garden';
+import { SkyBackground } from './Background';
+import { BrandHeader } from './BrandHeader';
+import { PersonalNews } from './PersonalNews';
+import { MotionReveal } from './MotionReveal';
+
+export function ScreenShell({ children }: { children: ReactNode }) {
+  const insets = useSafeAreaInsets();
+  const segments = useSegments();
+  const insideTabs = segments[0] === '(tabs)';
+  const titleTop = insets.top + 116;
+  return (
+    <SkyBackground>
+      <GardenLayer />
+      {!insideTabs && (
+        <View style={[s.standaloneHeader, { top: insets.top + 10 }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)');
+              }
+            }}
+            style={s.backPill}
+          >
+            <ChevronLeft size={18} color={colors.ink} />
+            <Text style={s.backPillText}>Back</Text>
+          </Pressable>
+          <BrandHeader compact />
+        </View>
+      )}
+      <ScrollView
+        style={s.scroller}
+        contentContainerStyle={[
+          s.screen,
+          {
+            paddingTop: titleTop,
+            paddingBottom: insets.bottom + 104,
+          },
+        ]}
+        contentInsetAdjustmentBehavior="never"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {children}
+      </ScrollView>
+    </SkyBackground>
+  );
+}
+
+export function ScreenIntro({
+  eyebrow,
+  title,
+  accent,
+  sub,
+}: {
+  eyebrow?: string;
+  title: string;
+  accent?: string;
+  sub?: string;
+}) {
+  return (
+    <MotionReveal style={{ marginBottom: 20 }}>
+      {eyebrow ? (
+        <View style={s.between}>
+          <Eyebrow>{eyebrow}</Eyebrow>
+        </View>
+      ) : null}
+      <Heading accent={accent}>{title}</Heading>
+      {sub && <Text style={s.sub}>{sub}</Text>}
+    </MotionReveal>
+  );
+}
+
+export function ProgressRing({ progress }: { progress?: number }) {
+  const value = Math.max(0, Math.min(1, progress ?? 0));
+  const radius = 25,
+    circumference = 2 * Math.PI * radius;
+  return (
+    <View style={s.ring}>
+      <Svg width="62" height="62" viewBox="0 0 62 62">
+        <Circle
+          cx="31"
+          cy="31"
+          r={radius}
+          fill="rgba(255,255,255,.72)"
+          stroke={colors.pale}
+          strokeWidth="6"
+        />
+        <Circle
+          cx="31"
+          cy="31"
+          r={radius}
+          fill="none"
+          stroke={colors.pink}
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray={`${circumference} ${circumference}`}
+          strokeDashoffset={circumference * (1 - value)}
+          rotation="-90"
+          origin="31,31"
+        />
+      </Svg>
+      <Text style={s.ringText}>
+        {progress === undefined ? '—' : `${Math.round(value * 100)}%`}
+      </Text>
+    </View>
+  );
+}
+
+function PredictorPanel() {
+  const { data } = useFinanceStore();
+  return (
+    <>
+      <Title eyebrow="RANKED BY ESTIMATED COST">
+        Where you might lose money.
+      </Title>
+      {data.losses.map((loss, index) => (
+        <Card key={loss.id} style={{ marginBottom: 12 }}>
+          <View style={s.lossRow}>
+            <View style={s.lossRank}>
+              <Text style={s.lossRankText}>{index + 1}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.serif}>{loss.title}</Text>
+              <Text style={s.strong}>
+                {money(loss.minimum)}–{money(loss.maximum)} estimated
+              </Text>
+              <Text style={s.small}>{loss.reason}</Text>
+              <Text style={s.lossAction}>Suggested action · {loss.action}</Text>
+            </View>
+          </View>
+        </Card>
+      ))}
+      <Advice />
+    </>
+  );
+}
+
+function SimulationPanel() {
+  const { data, sim } = useFinanceStore();
+  const { plans } = data.simulate;
+  const chart = sim ? simulationChart(data.simulate, sim) : [];
+  const final = chart.at(-1);
+  return (
+    <>
+      <Card>
+        <View style={s.between}>
+          <View>
+            <Eyebrow>LONG-RUN BALANCE</Eyebrow>
+            <Text style={s.serif}>Three paths, one horizon.</Text>
+          </View>
+          <Badge>Estimated</Badge>
+        </View>
+        {chart.length > 0 ? (
+          <BalanceAreaChart data={chart} plans={plans} />
+        ) : (
+          <View style={{ aspectRatio: 330 / 230 }} />
+        )}
+        <Text style={s.small}>
+          {plans.map((plan) => plan.name).join(' · ')}
+        </Text>
+        <View style={s.finalBalances}>
+          {plans.map((plan) => (
+            <View key={plan.name} style={s.finalBalance}>
+              <Text style={s.mini}>{plan.name.toUpperCase()}</Text>
+              <Text style={s.strong}>
+                {money(final ? Number(final[plan.name]) : undefined)} estimated
+              </Text>
+            </View>
+          ))}
+        </View>
+      </Card>
+      <Advice />
+    </>
+  );
+}
+
+export function PredictScreen() {
+  const { predictMode, setPredictMode } = useFinanceStore();
+  return (
+    <ScreenShell>
+      <ScreenIntro
+        eyebrow="LOOK AHEAD"
+        title="Make uncertainty"
+        accent="useful."
+        sub="Stress test today, or sketch a longer tomorrow."
+      />
+      <MotionReveal beat="second">
+        <SegmentedPill
+          options={['news', 'predict', 'simulate'] as const}
+          value={predictMode}
+          onChange={setPredictMode}
+        />
+      </MotionReveal>
+      <MotionReveal key={predictMode} beat="third">
+        {predictMode === 'news' ? (
+          <PersonalNews />
+        ) : predictMode === 'predict' ? (
+          <PredictorPanel />
+        ) : (
+          <SimulationPanel />
+        )}
+      </MotionReveal>
+    </ScreenShell>
+  );
+}
+
+export function GoalsScreen() {
+  const { data, selectGoal, loadGoals } = useFinanceStore();
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [retry, setRetry] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      const controller = new AbortController();
+      setLoadFailed(false);
+      void loadGoals(controller.signal).catch(() => {
+        if (!controller.signal.aborted) setLoadFailed(true);
+      });
+      return () => controller.abort();
+    }, [loadGoals, retry])
+  );
+  return (
+    <ScreenShell>
+      <ScreenIntro
+        eyebrow="GROW WITH INTENTION"
+        title="Goals with"
+        accent="roots."
+        sub="Every contribution helps something take shape."
+      />
+      <MotionReveal beat="second" style={{ marginBottom: 13 }}>
+        <Button3D onClick={() => router.push('/create-goal')}>
+          Create a goal
+        </Button3D>
+      </MotionReveal>
+      {loadFailed && (
+        <Card style={{ marginBottom: 13 }}>
+          <Text accessibilityRole="alert" style={s.small}>
+            Could not load saved goals.
+          </Text>
+          <Button3D tone="white" onClick={() => setRetry((count) => count + 1)}>
+            Retry
+          </Button3D>
+        </Card>
+      )}
+      {data.goals.map((goal) => (
+        <Pressable key={goal.id} onPress={() => selectGoal(goal.id)}>
+          <Card style={{ marginBottom: 13 }}>
+            <View style={s.row}>
+              <View style={{ flex: 1 }}>
+                <Eyebrow>ETA · {goal.eta}</Eyebrow>
+                <Text style={s.serif}>{goal.title}</Text>
+                <Text style={s.small}>
+                  {money(goal.saved)} of {money(goal.target)}
+                </Text>
+              </View>
+              <Sapling
+                goal={goal}
+                compact
+                onPress={() => selectGoal(goal.id)}
+              />
+              <ProgressRing
+                progress={goal.saved === undefined ? undefined : goal.growth}
+              />
+            </View>
+          </Card>
+        </Pressable>
+      ))}
+      <Advice />
+    </ScreenShell>
+  );
+}
+
+export function ImpactScreen() {
+  const { data, snapshot } = useFinanceStore();
+  const params = useLocalSearchParams<{ headline?: string }>();
+  const [headline, setHeadline] = useState(
+    params.headline ?? data.impact.active
+  );
+  const [input, setInput] = useState('');
+  return (
+    <ScreenShell>
+      <ScreenIntro
+        eyebrow="HEADLINE IMPACT"
+        title="News, translated to"
+        accent="you."
+        sub="A plain-language estimate—not a prediction."
+      />
+      <MotionReveal beat="second">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 6, marginBottom: 14 }}
+        >
+          {data.impact.headlines.map((item) => (
+            <Pressable key={item} onPress={() => setHeadline(item)}>
+              <Badge tone={headline === item ? 'pink' : 'blue'}>{item}</Badge>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </MotionReveal>
+      <Card>
+        <Eyebrow>PASTE A HEADLINE</Eyebrow>
+        <View style={[s.row, { marginTop: 10 }]}>
+          <TextInput
+            accessibilityLabel="Paste a headline"
+            value={input}
+            onChangeText={setInput}
+            placeholder="Paste a headline…"
+            style={s.input}
+          />
+          <Button3D
+            ariaLabel="Use headline"
+            onClick={() => input.trim() && setHeadline(input.trim())}
+          >
+            <Sparkles color="white" />
+          </Button3D>
+        </View>
+      </Card>
+      <Title eyebrow="WHAT THIS MEANS FOR YOU">
+        Small shifts, shown honestly.
+      </Title>
+      <MotionReveal key={headline} beat="update">
+        <Card>
+          {impactRows(snapshot, headline).map((row) => (
+            <View key={row.label} style={s.impact}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.strong}>{row.label}</Text>
+                <Text style={s.mini}>{row.range}</Text>
+              </View>
+              <Text style={s.small}>{row.before}</Text>
+              <ArrowRight size={14} color={colors.muted} />
+              <Text style={s.strong}>{row.after}</Text>
+            </View>
+          ))}
+        </Card>
+      </MotionReveal>
+      <Card style={{ marginTop: 16 }}>
+        <View style={s.row}>
+          <TrendingUp color={colors.ink} />
+          <Text style={[s.small, { flex: 1 }]}>
+            These ranges are estimates based on the selected demo headline:{' '}
+            {headline}.
+          </Text>
+        </View>
+      </Card>
+      <Advice />
+    </ScreenShell>
+  );
+}
+
+export function Title({
+  eyebrow,
+  children,
+}: {
+  eyebrow: string;
+  children: ReactNode;
+}) {
+  return (
+    <View style={{ marginTop: 24, marginBottom: 10 }}>
+      <Eyebrow>{eyebrow}</Eyebrow>
+      <Text style={s.title}>{children}</Text>
+    </View>
+  );
+}
+
+function Advice() {
+  return <Text style={s.advice}>Informational, not financial advice.</Text>;
+}
+
+const s = StyleSheet.create({
+  screen: { paddingHorizontal: 16 },
+  scroller: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
+  standaloneHeader: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    zIndex: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
     paddingVertical: 7,
     paddingHorizontal: 12,
@@ -114,5 +539,12 @@
     gap: 7,
     borderBottomWidth: 1,
     borderColor: 'rgba(11,58,91,.1)',
+  },
+  advice: {
+    fontFamily: 'Inter_400Regular',
+    textAlign: 'center',
+    fontSize: 9,
+    color: colors.muted,
+    margin: 20,
   },
 });
