@@ -8,16 +8,7 @@ Mobile-first personal finance demo built with Expo, React Native, TypeScript, an
 2. Start Metro: `npx expo start`
 3. Scan the QR code with Expo Go, or press `a` for Android / `i` for iOS.
 
-Start FastAPI from `backend` with `python -m uvicorn app.main:app --reload --host 0.0.0.0` (or `python main.py`). Create `frontend/.env.local` with:
-
-```env
-EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
-EXPO_PUBLIC_NESSIE_CUSTOMER_ID=your-sandbox-customer-id
-```
-
-The app automatically detects when running on a mobile device or other client and resolves loopback (`127.0.0.1` / `localhost`) to the host machine's LAN IP address from Metro, while preserving loopback on the local device. Ensure FastAPI is started with `--host 0.0.0.0` so connections from both the local device and mobile devices are accepted. Keep the Nessie API key in the backend environment. Reload Expo after changing the customer ID.
-
-The app uses only Expo Go-compatible libraries; no custom native build or Skia is required.
+The app uses typed synthetic data from `lib/mock` and only Expo Go-compatible libraries; no server, custom native build, or Skia is required.
 
 ## Demo authentication
 
@@ -40,9 +31,9 @@ Login and sign-up use a typed mock `AuthService`. Any valid email and password o
 
 - `app/` — Expo Router routes and route guards
 - `components/` — reusable native UI, screens, charts, navigation, and Garden
-- `lib/api.ts` — FastAPI client and response types
-- `lib/store.ts` — dashboard loading and forecast state
+- `lib/mock/` — typed synthetic finance data
+- `lib/store.ts` — dashboard, goal, period, and simulator state
 - `lib/auth/` — replaceable auth service and Zustand auth store
 - `lib/theme.ts` — shared colors, spacing, and radii
 
-The finance screens read the selected Nessie sandbox customer through FastAPI. Unavailable values reflect missing upstream data or projection inputs. The shock presets and simulator sliders are hypothetical inputs.
+All finance figures are synthetic estimates. The mock layer is intentionally replaceable without changing screen components.
