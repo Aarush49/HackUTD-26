@@ -8,14 +8,14 @@ Mobile-first personal finance demo built with Expo, React Native, TypeScript, an
 2. Start Metro: `npx expo start`
 3. Scan the QR code with Expo Go, or press `a` for Android / `i` for iOS.
 
-Start FastAPI from `backend` with `python -m uvicorn app.main:app --reload`. Create `frontend/.env.local` with:
+Start FastAPI from `backend` with `python -m uvicorn app.main:app --reload --host 0.0.0.0` (or `python main.py`). Create `frontend/.env.local` with:
 
 ```env
 EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 EXPO_PUBLIC_NESSIE_CUSTOMER_ID=your-sandbox-customer-id
 ```
 
-For web on the same computer, run `npm run web`. For a physical phone on the same trusted Wi-Fi network, use your computer's LAN address in the Expo configuration and add `--host 0.0.0.0` to the FastAPI command. Keep the Nessie API key in the backend environment. Reload Expo after changing the customer ID.
+The app automatically detects when running on a mobile device or other client and resolves loopback (`127.0.0.1` / `localhost`) to the host machine's LAN IP address from Metro, while preserving loopback on the local device. Ensure FastAPI is started with `--host 0.0.0.0` so connections from both the local device and mobile devices are accepted. Keep the Nessie API key in the backend environment. Reload Expo after changing the customer ID.
 
 The app uses only Expo Go-compatible libraries; no custom native build or Skia is required.
 
