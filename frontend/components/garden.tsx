@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AccessibilityInfo, Pressable, StyleSheet, View } from "react-native";
 import Svg, { Circle, Ellipse, G, Path } from "react-native-svg";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Goal } from "@/lib/mock";
 import { useFinanceStore } from "@/lib/store";
 import { colors } from "@/lib/theme";
@@ -40,14 +41,15 @@ export function Sapling({ goal, ambient = false, compact = false, onPress }: { g
 
 export function GardenLayer() {
   const { data, inspectGoal } = useFinanceStore();
+  const insets = useSafeAreaInsets();
   const trend = data.picture.periods.Month.change / 10;
   const runway = Number.parseFloat(data.picture.health.runway) / 10;
   const overallGrowth = Math.max(.08, Math.min(1, (trend + runway) / 2));
-  return <View pointerEvents="box-none" style={s.layer}><View pointerEvents="none" style={s.soil}/>
+  return <View pointerEvents="box-none" style={[s.layer, { bottom: 64 + insets.bottom }]}><View pointerEvents="none" style={s.soil}/>
     <Sapling goal={data.goals[2]} onPress={() => inspectGoal(data.goals[2].id)}/>
     <Sapling ambient goal={{ title: "Overall financial health", growth: overallGrowth }}/>
     <Sapling goal={data.goals[0]} onPress={() => inspectGoal(data.goals[0].id)}/>
   </View>;
 }
 
-const s = StyleSheet.create({ layer: { position: "absolute", left: 0, right: 0, bottom: 60, height: 210, opacity: .17, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-around" }, soil: { position: "absolute", bottom: 0, left: -20, right: -20, height: 34, borderTopLeftRadius: 100, borderTopRightRadius: 100, backgroundColor: "#75C99B" } });
+const s = StyleSheet.create({ layer: { position: "absolute", left: 0, right: 0, height: 210, opacity: .17, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-around" }, soil: { position: "absolute", bottom: 0, left: -20, right: -20, height: 34, borderTopLeftRadius: 100, borderTopRightRadius: 100, backgroundColor: "#75C99B" } });
