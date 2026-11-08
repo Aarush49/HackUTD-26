@@ -5,7 +5,7 @@ from app.main import create_app
 
 
 def test_docs_and_graceful_missing_credentials():
-    with TestClient(create_app(Settings(database_url="sqlite://"))) as client:
+    with TestClient(create_app(Settings(mongo_uri="mongomock://localhost"))) as client:
         assert client.get("/health").json() == {"status": "ok"}
         assert client.get("/docs").status_code == 200
         assert not client.get("/api/nessie/status").json()["configured"]
