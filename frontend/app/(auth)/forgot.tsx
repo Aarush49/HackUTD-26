@@ -1,7 +1,6 @@
 import { Link } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { SkyBackground } from '@/components/Background';
-import { MotionReveal } from '@/components/MotionReveal';
 import { Card, Eyebrow, Heading } from '@/components/ui';
 import { colors } from '@/lib/theme';
 
@@ -10,20 +9,20 @@ export default function Forgot() {
     <SkyBackground>
       <View style={s.page}>
         <View style={s.trust} />
-        <MotionReveal>
-          <Card>
-            <Eyebrow>RECOVERY STUB</Eyebrow>
-            <Heading accent="growing.">Keep</Heading>
-            <Text style={s.copy}>
-              Password recovery will connect to a real authentication service
-              later.
-            </Text>
-            <Link href="/(auth)/login" style={s.link}>
-              Back to login
-            </Link>
-          </Card>
-        </MotionReveal>
-        <Text style={s.footer}>Synthetic demo data.</Text>
+        <Card>
+          <Eyebrow>RECOVERY STUB</Eyebrow>
+          <Heading accent="growing.">Keep</Heading>
+          <Text style={s.copy}>
+            Password recovery will connect to a real authentication service
+            later.
+          </Text>
+          <Link href="/(auth)/login" style={s.link}>
+            Back to login
+          </Link>
+        </Card>
+        <Text style={s.footer}>
+          Synthetic demo data. Informational, not financial advice.
+        </Text>
       </View>
     </SkyBackground>
   );

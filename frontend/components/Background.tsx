@@ -1,35 +1,28 @@
-import { ReactNode, useCallback, useContext } from 'react';
-import { StyleSheet } from 'react-native';
+import { ReactNode, useEffect, useState } from 'react';
+import { AccessibilityInfo, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect } from 'expo-router';
 import Animated, {
-  cancelAnimation,
-  ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
 import { colors } from '@/lib/theme';
-import { ReducedMotionContext } from '@/lib/motion';
-
 export function SkyBackground({ children }: { children: ReactNode }) {
-  const reduce = useContext(ReducedMotionContext);
+  const [reduce, setReduce] = useState(false);
   const x = useSharedValue(-40);
-  useFocusEffect(
-    useCallback(() => {
-      x.value = -40;
-      if (reduce) return;
-      x.value = withRepeat(
-        withTiming(110, { duration: 18000 }),
-        -1,
-        true,
-        undefined,
-        ReduceMotion.System
-      );
-      return () => cancelAnimation(x);
-    }, [reduce, x])
-  );
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduce);
+    const s = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      setReduce
+    );
+    return () => s.remove();
+  }, []);
+  useEffect(() => {
+    if (!reduce)
+      x.value = withRepeat(withTiming(110, { duration: 18000 }), -1, true);
+  }, [reduce, x]);
   const drift = useAnimatedStyle(() => ({
     transform: [{ translateX: x.value }],
   }));

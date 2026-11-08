@@ -112,10 +112,10 @@ export async function api<T>(path: string, body?: object, signal?: AbortSignal, 
   return response.json();
 }
 
-export async function resolveCustomerId(signal?: AbortSignal): Promise<string> {
+export async function resolveCustomerId(): Promise<string> {
   const configured = process.env.EXPO_PUBLIC_NESSIE_CUSTOMER_ID?.trim();
   if (configured) return configured;
-  const result = await api<{customer_id: string}>("/news/customer", undefined, signal);
+  const result = await api<{customer_id: string}>("/news/customer");
   return result.customer_id;
 }
 

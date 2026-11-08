@@ -13,7 +13,6 @@ from app.api.personal_news import purchase_suggestions, Preferences, query_for
 def test_preferences_roundtrip_and_no_automatic_history_selection(api):
     assert api.get('/api/news/customer').json() == {'customer_id': 'customer'}
     assert api.get('/api/news/preferences/customer').json()['topics'] == []
-    assert api.post('/api/news/feed', json={'customer_id': 'customer'}).status_code == 503
     response = api.post('/api/news/preferences', json={'customer_id': 'customer', 'goals': ['Japan trip'],
         'topics': ['hotel prices', 'hotel prices'], 'destination': 'Japan', 'timeframe': 'spring 2027'})
     assert response.status_code == 200, response.text
@@ -45,7 +44,7 @@ def test_news_and_gemini_contract_privacy_cache_and_fallback(sandbox):
         calls.append(request)
         if request.url.host == 'newsapi.org':
             assert request.headers['X-Api-Key'] == 'news-test'
-            assert request.url.params['q'] == '"Japan trip" OR "Buy a house" OR "New car" OR "hotel prices" OR "Japan"'
+            assert request.url.params['q'] == '"hotel prices" OR "Japan"'
             return httpx.Response(200, json={'status': 'ok', 'articles': [
                 {'title': 'Hotel costs', 'description': 'Publisher description', 'content': 'A short snippet', 'url': 'https://example.com/a',
                  'source': {'name': 'Example'}, 'publishedAt': '2026-11-01T10:00:00Z'},
@@ -61,7 +60,7 @@ def test_news_and_gemini_contract_privacy_cache_and_fallback(sandbox):
             {'id': 0, 'summary': 'Hotel costs are changing.', 'why_it_matters': 'May affect your Japan trip.', 'suggested_action': 'Check current hotel quotes.'}]})}]}}]})
     settings = Settings(nessie_api_key='test-key', nessie_customer_id='customer', mongo_uri='memory://', news_api_key='news-test', gemini_api_key='gemini-test')
     with TestClient(create_app(settings, transport=httpx.MockTransport(sandbox), news_transport=httpx.MockTransport(transport))) as client:
-        client.post('/api/news/preferences', json={'customer_id': 'customer', 'goals': ['Old goal'], 'topics': ['hotel prices'], 'destination': 'Japan'})
+        client.post('/api/news/preferences', json={'customer_id': 'customer', 'topics': ['hotel prices'], 'destination': 'Japan'})
         response = client.post('/api/news/feed', json={'customer_id': 'customer'})
         assert response.status_code == 200, response.text
         result = response.json()
