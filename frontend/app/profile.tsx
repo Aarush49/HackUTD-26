@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { LogOut } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkyBackground } from '@/components/Background';
-import { Button3D, Card, Eyebrow, Heading, TrustTag } from '@/components/ui';
+import { Button3D, Card, Eyebrow, Heading } from '@/components/ui';
 import { useAuthStore } from '@/lib/auth/store';
 import { colors } from '@/lib/theme';
 
@@ -21,7 +21,6 @@ export default function Profile() {
       >
         <View style={s.top}>
           <Eyebrow>YOUR PROFILE</Eyebrow>
-          <TrustTag />
         </View>
         <Heading accent="you.">Made for</Heading>
         <Card style={{ marginTop: 20 }}>

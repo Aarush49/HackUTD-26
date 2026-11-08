@@ -23,7 +23,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkyBackground } from './Background';
 import { Sapling } from './garden';
-import { Button3D, Card, Eyebrow, Heading, TrustTag } from './ui';
+import { Button3D, Card, Eyebrow, Heading } from './ui';
 import { useAuthStore } from '@/lib/auth/store';
 import { colors } from '@/lib/theme';
 
@@ -156,9 +156,7 @@ export function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
             { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 24 },
           ]}
         >
-          <View style={s.trust}>
-            <TrustTag />
-          </View>
+          <View style={s.trust} />
           <View style={s.top}>
             <View>
               <Eyebrow>

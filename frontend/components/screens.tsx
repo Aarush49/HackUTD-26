@@ -21,6 +21,7 @@ import {
 } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { impactRows, money, simulationChart } from '@/lib/finance/data';
 import { useFinanceStore } from '@/lib/store';
 import { colors } from '@/lib/theme';
 import {
@@ -39,13 +40,6 @@ import {
 import { GardenLayer, Sapling } from './garden';
 import { SkyBackground } from './Background';
 import { BrandHeader } from './BrandHeader';
-
-const money = (value: number) =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(value);
 
 function ScreenShell({ children }: { children: ReactNode }) {
   const insets = useSafeAreaInsets();
@@ -106,8 +100,8 @@ function ScreenIntro({
   );
 }
 
-function ProgressRing({ progress }: { progress: number }) {
-  const value = Math.max(0, Math.min(1, progress));
+function ProgressRing({ progress }: { progress?: number }) {
+  const value = Math.max(0, Math.min(1, progress ?? 0));
   const radius = 25,
     circumference = 2 * Math.PI * radius;
   return (
@@ -135,13 +129,15 @@ function ProgressRing({ progress }: { progress: number }) {
           origin="31,31"
         />
       </Svg>
-      <Text style={s.ringText}>{Math.round(value * 100)}%</Text>
+      <Text style={s.ringText}>
+        {progress === undefined ? '—' : `${Math.round(value * 100)}%`}
+      </Text>
     </View>
   );
 }
 
 export function TodayScreen() {
-  const { data, selectGoal } = useFinanceStore();
+  const { data, selectGoal, loadFailed } = useFinanceStore();
   const goal = data.goals[0];
   return (
     <ScreenShell>
@@ -153,7 +149,11 @@ export function TodayScreen() {
       />
       <Card>
         <Eyebrow>NET POSITION · ESTIMATED</Eyebrow>
-        <BigNumber>{money(data.picture.periods.Month.netPosition)}</BigNumber>
+        <BigNumber>
+          {loadFailed
+            ? 'Unavailable'
+            : money(data.picture.periods.Month.netPosition)}
+        </BigNumber>
       </Card>
       <Pressable onPress={() => selectGoal(goal.id)}>
         <Card>
@@ -166,7 +166,9 @@ export function TodayScreen() {
                 {money(goal.saved)} of {money(goal.target)}
               </Text>
             </View>
-            <ProgressRing progress={goal.growth} />
+            <ProgressRing
+              progress={goal.saved === undefined ? undefined : goal.growth}
+            />
           </View>
         </Card>
       </Pressable>
@@ -229,7 +231,9 @@ export function PictureScreen() {
         <Eyebrow>NET POSITION · ESTIMATED</Eyebrow>
         <View style={s.between}>
           <BigNumber>{money(selected.netPosition)}</BigNumber>
-          <Badge tone="green">↗ {selected.change}%</Badge>
+          <Badge tone="green">
+            ↗ {selected.change === undefined ? '—' : `${selected.change}%`}
+          </Badge>
         </View>
         <LineChartWithNodes
           key={period}
@@ -253,7 +257,11 @@ export function PictureScreen() {
       </View>
       <StatTile
         label="INTEREST DRAG"
-        value={`${money(picture.health.interestDrag)}/yr`}
+        value={
+          picture.health.interestDrag === undefined
+            ? '—'
+            : `${money(picture.health.interestDrag)}/yr`
+        }
         tone="amber"
       />
       <Title eyebrow="ACCOUNTS">Where it lives.</Title>
@@ -276,14 +284,15 @@ export function PictureScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.strong}>{account.name}</Text>
-                    {account.rate && (
+                    {account.rate !== undefined && (
                       <Text style={s.mini}>{account.rate}% estimated rate</Text>
                     )}
                   </View>
                   <Text
                     style={[
                       s.strong,
-                      account.balance < 0 && { color: colors.danger },
+                      account.balance !== undefined &&
+                        account.balance < 0 && { color: colors.danger },
                     ]}
                   >
                     {money(account.balance)}
@@ -328,20 +337,8 @@ function PredictorPanel() {
 
 function SimulationPanel() {
   const { data, sim, setSim } = useFinanceStore();
-  const plans = data.simulate.plans;
-  const chart = plans[0].points.map((point, index) =>
-    Object.fromEntries([
-      ['label', point.label],
-      ...plans.map((plan) => [
-        plan.name,
-        Math.round(
-          (plan.points[index].value ?? 0) *
-            (sim.monthly / data.simulate.monthly) *
-            (1 + (((sim.rate - data.simulate.rate) / 100) * index) / 5)
-        ),
-      ]),
-    ])
-  ) as Record<string, unknown>[];
+  const { plans, settings } = data.simulate;
+  const chart = sim ? simulationChart(data.simulate, sim) : [];
   const final = chart.at(-1);
   return (
     <>
@@ -353,7 +350,11 @@ function SimulationPanel() {
           </View>
           <Badge>Estimated</Badge>
         </View>
-        <BalanceAreaChart data={chart} plans={plans} />
+        {chart.length > 0 ? (
+          <BalanceAreaChart data={chart} plans={plans} />
+        ) : (
+          <View style={{ aspectRatio: 330 / 230 }} />
+        )}
         <Text style={s.small}>
           {plans.map((plan) => plan.name).join(' · ')}
         </Text>
@@ -362,40 +363,43 @@ function SimulationPanel() {
             <View key={plan.name} style={s.finalBalance}>
               <Text style={s.mini}>{plan.name.toUpperCase()}</Text>
               <Text style={s.strong}>
-                {money(Number(final?.[plan.name] ?? 0))} estimated
+                {money(final ? Number(final[plan.name]) : undefined)} estimated
               </Text>
             </View>
           ))}
         </View>
       </Card>
-      <Card style={{ marginTop: 16 }}>
-        <ChunkySlider
-          label="Monthly amount"
-          value={sim.monthly}
-          min={100}
-          max={1800}
-          step={50}
-          suffix=" / mo"
-          onChange={(value) => setSim('monthly', value)}
-        />
-        <ChunkySlider
-          label="Years"
-          value={sim.years}
-          min={2}
-          max={20}
-          suffix=" yr"
-          onChange={(value) => setSim('years', value)}
-        />
-        <ChunkySlider
-          label="Estimated return"
-          value={sim.rate}
-          min={2}
-          max={12}
-          step={0.5}
-          suffix="%"
-          onChange={(value) => setSim('rate', value)}
-        />
-      </Card>
+      {settings && sim && (
+        <Card style={{ marginTop: 16 }}>
+          <ChunkySlider
+            label="Monthly amount"
+            value={sim.monthly}
+            min={settings.monthly.min}
+            max={settings.monthly.max}
+            step={settings.monthly.step}
+            suffix=" / mo"
+            onChange={(value) => setSim('monthly', value)}
+          />
+          <ChunkySlider
+            label="Years"
+            value={sim.years}
+            min={settings.years.min}
+            max={settings.years.max}
+            step={settings.years.step}
+            suffix=" yr"
+            onChange={(value) => setSim('years', value)}
+          />
+          <ChunkySlider
+            label="Estimated return"
+            value={sim.rate}
+            min={settings.rate.min}
+            max={settings.rate.max}
+            step={settings.rate.step}
+            suffix="%"
+            onChange={(value) => setSim('rate', value)}
+          />
+        </Card>
+      )}
       <Advice />
     </>
   );
@@ -447,7 +451,9 @@ export function GoalsScreen() {
                 compact
                 onPress={() => selectGoal(goal.id)}
               />
-              <ProgressRing progress={goal.growth} />
+              <ProgressRing
+                progress={goal.saved === undefined ? undefined : goal.growth}
+              />
             </View>
           </Card>
         </Pressable>
@@ -458,7 +464,7 @@ export function GoalsScreen() {
 }
 
 export function ImpactScreen() {
-  const { data } = useFinanceStore();
+  const { data, snapshot } = useFinanceStore();
   const params = useLocalSearchParams<{ headline?: string }>();
   const [headline, setHeadline] = useState(
     params.headline ?? data.impact.active
@@ -505,7 +511,7 @@ export function ImpactScreen() {
         Small shifts, shown honestly.
       </Title>
       <Card>
-        {data.impact.rows.map((row) => (
+        {impactRows(snapshot, headline).map((row) => (
           <View key={row.label} style={s.impact}>
             <View style={{ flex: 1 }}>
               <Text style={s.strong}>{row.label}</Text>

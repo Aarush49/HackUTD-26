@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkyBackground } from '@/components/Background';
-import { Button3D, Card, Eyebrow, Heading, TrustTag } from '@/components/ui';
+import { Button3D, Card, Eyebrow, Heading } from '@/components/ui';
 import { Sapling } from '@/components/garden';
 import { useAuthStore } from '@/lib/auth/store';
 import { colors } from '@/lib/theme';
@@ -25,7 +25,6 @@ export default function Onboarding() {
       >
         <View style={s.top}>
           <Eyebrow>ONE SMALL START</Eyebrow>
-          <TrustTag />
         </View>
         <Heading accent="first.">Plant one goal</Heading>
         <View style={s.plant}>

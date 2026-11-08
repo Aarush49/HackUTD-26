@@ -1,14 +1,21 @@
 import { create } from 'zustand';
-import { mockData, Tab } from '@/lib/mock';
+import { fetchNessieSnapshot } from '@/lib/finance/api';
+import type { NessieSnapshot } from '@/lib/finance/api';
+import { buildData } from '@/lib/finance/data';
+import type { FinanceData, Simulation, Tab } from '@/lib/finance/types';
 
 type State = {
-  data: typeof mockData;
+  data: FinanceData;
+  snapshot?: NessieSnapshot;
+  loadFailed: boolean;
   tab: Tab;
   sheet: null | 'whatif' | 'goal' | 'sapling';
   selectedGoal: string | null;
   predictMode: 'predict' | 'simulate';
   period: 'Week' | 'Month' | 'Year';
-  sim: { monthly: number; years: number; rate: number };
+  sim?: Simulation;
+  load: (signal: AbortSignal) => Promise<void>;
+  clear: () => void;
   setTab: (tab: Tab) => void;
   openSheet: (sheet: State['sheet']) => void;
   closeSheet: () => void;
@@ -16,21 +23,41 @@ type State = {
   inspectGoal: (id: string) => void;
   setPredictMode: (mode: State['predictMode']) => void;
   setPeriod: (period: State['period']) => void;
-  setSim: (key: keyof State['sim'], value: number) => void;
+  setSim: (key: keyof Simulation, value: number) => void;
 };
 
 export const useFinanceStore = create<State>((set) => ({
-  data: mockData,
+  data: buildData(),
+  loadFailed: false,
   tab: 'today',
   sheet: null,
   selectedGoal: null,
   predictMode: 'predict',
   period: 'Month',
-  sim: {
-    monthly: mockData.simulate.monthly,
-    years: mockData.simulate.years,
-    rate: mockData.simulate.rate,
+  load: async (signal) => {
+    set({ loadFailed: false });
+    try {
+      const snapshot = await fetchNessieSnapshot(signal);
+      if (signal.aborted) return;
+      const data = buildData(snapshot);
+      const settings = data.simulate.settings;
+      const sim = settings && {
+        monthly: settings.monthly.initial,
+        years: settings.years.initial,
+        rate: settings.rate.initial,
+      };
+      set({ snapshot, data, sim });
+    } catch {
+      if (!signal.aborted) set({ loadFailed: true });
+    }
   },
+  clear: () =>
+    set({
+      snapshot: undefined,
+      data: buildData(),
+      sim: undefined,
+      loadFailed: false,
+    }),
   setTab: (tab) => set({ tab }),
   openSheet: (sheet) => set({ sheet }),
   closeSheet: () => set({ sheet: null }),
@@ -39,5 +66,7 @@ export const useFinanceStore = create<State>((set) => ({
   setPredictMode: (predictMode) => set({ predictMode }),
   setPeriod: (period) => set({ period }),
   setSim: (key, value) =>
-    set((state) => ({ sim: { ...state.sim, [key]: value } })),
+    set((state) =>
+      state.sim ? { sim: { ...state.sim, [key]: value } } : state
+    ),
 }));

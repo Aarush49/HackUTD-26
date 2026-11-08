@@ -21,6 +21,8 @@ Sign in to [Nessie](https://prod.nessieisreal.com/) and copy your sandbox key in
 
 Open [Swagger UI](http://127.0.0.1:8000/docs). The local service uses a shared sandbox key and is designed for a trusted local environment.
 
+The Expo app reads `GET /api/canopy?customer_id=<customer-id>`. To populate demo assumptions for a new sandbox customer, run `python seed_canopy_demo.py --customer <customer-id>` from this directory. This command writes tagged zero-dollar deposits to a dedicated metadata account. It skips sections already present and verifies the saved records. The FastAPI routes read from Nessie, and the financial aggregator excludes the metadata account from balances and activity.
+
 ## Choose a customer and inspect the data
 
 In a second PowerShell terminal:

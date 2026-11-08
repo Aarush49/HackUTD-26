@@ -1,16 +1,14 @@
 import { Link } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { SkyBackground } from '@/components/Background';
-import { Card, Eyebrow, Heading, TrustTag } from '@/components/ui';
+import { Card, Eyebrow, Heading } from '@/components/ui';
 import { colors } from '@/lib/theme';
 
 export default function Forgot() {
   return (
     <SkyBackground>
       <View style={s.page}>
-        <View style={s.trust}>
-          <TrustTag />
-        </View>
+        <View style={s.trust} />
         <Card>
           <Eyebrow>RECOVERY STUB</Eyebrow>
           <Heading accent="growing.">Keep</Heading>
