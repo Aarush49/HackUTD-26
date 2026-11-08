@@ -19,6 +19,13 @@ export function PictureScreen() {
   const { data, period, setPeriod } = useFinanceStore();
   const picture = data.picture,
     selected = picture.periods[period];
+  const change = selected.change ?? selected.changeAmount;
+  const changeLabel =
+    selected.change === undefined
+      ? money(selected.changeAmount)
+      : `${selected.change}%`;
+  const changeTone =
+    change === undefined || change === 0 ? 'blue' : change > 0 ? 'green' : 'amber';
   const groups = [...new Set(picture.accounts.map((account) => account.kind))];
   return (
     <ScreenShell>
@@ -37,8 +44,9 @@ export function PictureScreen() {
         <Eyebrow>NET POSITION · ESTIMATED</Eyebrow>
         <View style={s.between}>
           <BigNumber>{money(selected.netPosition)}</BigNumber>
-          <Badge tone="green">
-            ↗ {selected.change === undefined ? '—' : `${selected.change}%`}
+          <Badge tone={changeTone}>
+            {change !== undefined && change > 0 ? '+' : ''}
+            {changeLabel}
           </Badge>
         </View>
         <LineChartWithNodes

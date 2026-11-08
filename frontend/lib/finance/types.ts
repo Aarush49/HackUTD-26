@@ -28,6 +28,7 @@ export type PicturePeriod = {
   netPosition?: number;
   projectedBalance?: number;
   change?: number;
+  changeAmount?: number;
   chart: ChartPoint[];
 };
 export type FinanceData = {

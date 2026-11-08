@@ -5,6 +5,9 @@ import type { FinanceData, PicturePeriod, Simulation } from './types';
 
 const monthDays = 365.25 / 12;
 const dayMs = 86_400_000;
+const demoPriorMonthlyGrowth = 40;
+const legacyDemoInvestmentBalance = 14_400;
+const demoInvestmentBalance = 14_750;
 const dateAt = (date: string) => new Date(`${date}T00:00:00Z`);
 const offsetDate = (date: Date, days: number) =>
   new Date(date.getTime() + days * dayMs);
@@ -43,11 +46,11 @@ export const demoSnapshot: NessieSnapshot = {
   accounts: [],
   asOf: '2026-11-07',
   dailyChanges: {
-    '2026-11-02': 50,
-    '2026-11-03': 70,
-    '2026-11-04': -40,
-    '2026-11-05': 150,
-    '2026-11-06': 120,
+    '2026-11-02': 25,
+    '2026-11-03': 20,
+    '2026-11-04': -35,
+    '2026-11-05': 45,
+    '2026-11-06': 55,
   },
   historyStart: '2026-10-01',
   income: 5700,
@@ -59,12 +62,16 @@ export const demoSnapshot: NessieSnapshot = {
       c1: { balance: 3240 },
       s1: { balance: 12800, rate: 4.35 },
       cd: { balance: 6500, rate: 4.65 },
-      ira: { balance: 68400 },
+      ira: { balance: 28_010 },
       cc: { balance: -1840, rate: 22.4 },
       auto: { balance: -11260, rate: 6.1 },
       mort: { balance: -29600, rate: 4 },
     },
-    cashFlow: { income: 5700, spending: 2220, priorMonthlyGrowth: 650 },
+    cashFlow: {
+      income: 5700,
+      spending: 2220,
+      priorMonthlyGrowth: demoPriorMonthlyGrowth,
+    },
     goals: {
       japan: { saved: 4200, target: 6500, eta: '2027-04-18', change: 6 },
       home: { saved: 12800, target: 18000, eta: '2027-08-04' },
@@ -104,6 +111,9 @@ export function buildData(
   savedGoals: SavedGoal[] = []
 ): FinanceData {
   const inputs = snapshot?.inputs;
+  // Older demo customers still have the original seeded assumptions.
+  const usesLegacyDemo =
+    inputs?.accounts?.ira?.balance === legacyDemoInvestmentBalance;
   const accounts = accountRows.map(({ nessieType, ...row }) => {
     const matching =
       snapshot?.accounts.filter((account) => {
@@ -120,9 +130,11 @@ export function buildData(
       balance === null ? [] : [balance]
     );
     const demo = inputs?.accounts?.[row.id];
+    const demoBalance =
+      usesLegacyDemo && row.id === 'ira' ? demoInvestmentBalance : demo?.balance;
     const balance = balances.length
       ? sum(balances) * (row.kind === 'Credit' || row.kind === 'Loans' ? -1 : 1)
-      : demo?.balance;
+      : demoBalance;
     return {
       ...row,
       balance,
@@ -178,7 +190,11 @@ export function buildData(
     );
     if (observedFrom && date >= observedFrom)
       return netPosition - observedChange;
-    const priorGrowth = inputs?.cashFlow?.priorMonthlyGrowth;
+    const seededGrowth = inputs?.cashFlow?.priorMonthlyGrowth;
+    const priorGrowth =
+      usesLegacyDemo && seededGrowth === 225
+        ? demoPriorMonthlyGrowth
+        : seededGrowth;
     if (priorGrowth === undefined) return undefined;
     const unobservedDays = observedFrom
       ? (dateAt(observedFrom).getTime() - dateAt(date).getTime()) / dayMs
@@ -196,14 +212,22 @@ export function buildData(
   ): PicturePeriod {
     const first = balanceAt(history[0]);
     const projectedBalance = balanceAt(future);
+    const changeAmount =
+      first !== undefined && netPosition !== undefined
+        ? netPosition - first
+        : undefined;
     const change =
-      first && projectedBalance !== undefined
-        ? Math.round(((projectedBalance - first) / Math.abs(first)) * 1000) / 10
+      first !== undefined &&
+      changeAmount !== undefined &&
+      first > 0 &&
+      Math.abs(changeAmount) < first
+        ? Math.round((changeAmount / first) * 1000) / 10
         : undefined;
     return {
       netPosition,
       projectedBalance,
       change,
+      changeAmount,
       chart: [...history, future].map((days, index) => {
         const value = balanceAt(days);
         return {
