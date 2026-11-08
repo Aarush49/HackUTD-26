@@ -6,6 +6,7 @@ import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { UserRound, X } from "lucide-react-native";
 import { TabBar } from "@/components/navigation";
+import { BrandHeader } from "@/components/BrandHeader";
 import { useFinanceStore } from "@/lib/store";
 import { colors } from "@/lib/theme";
 
@@ -21,8 +22,7 @@ export default function TabsLayout() {
   return <><Tabs tabBar={props => <TabBar {...props}/>} screenOptions={{
     headerShown: true,
     headerTransparent: true,
-    headerTitle: "Canopy",
-    headerTitleStyle: { fontFamily: "Fraunces_600SemiBold", fontSize: 18, color: colors.ink },
+    headerTitle: () => <BrandHeader compact/>,
     headerBackground: () => <BlurView intensity={65} tint="light" style={[StyleSheet.absoluteFill, s.headerBlur]}><View style={s.headerOverlay}/></BlurView>,
     headerRight: () => <Pressable accessibilityLabel="Open profile" onPress={() => router.push("/profile")} style={s.profile}><UserRound color={colors.ink} size={20}/></Pressable>
   }}>
