@@ -78,7 +78,7 @@ export function Sapling({
               const y = 112 - index * 18,
                 side = index % 2 ? 1 : -1;
               return (
-                <G key={index}>
+                <G key={index} rotation={droop} origin={`50,${y}`}>
                   <Path
                     d={`M50 ${y} Q${50 + side * 15} ${y - 10} ${50 + side * 26} ${y - 9}`}
                     fill="none"
@@ -91,7 +91,8 @@ export function Sapling({
                     rx={crown * 0.62}
                     ry={crown * 0.36}
                     fill={index % 2 ? '#7DD3A7' : '#55B98A'}
-                    transform={`rotate(${side * 18} ${50 + side * 27} ${y - 11})`}
+                    rotation={side * 18}
+                    origin={`${50 + side * 27},${y - 11}`}
                   />
                 </G>
               );

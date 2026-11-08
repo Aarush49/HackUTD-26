@@ -11,7 +11,6 @@ from app.services.financial_aggregator import aggregate
 from app.features.personal_news import Preferences, PersonalNewsService, purchase_suggestions, query_for
 
 router = APIRouter(tags=["Personal news"])
-NEWS_GOALS = ("Japan trip", "Buy a house", "New car")
 
 
 @router.get("/news/customer")
@@ -69,5 +68,4 @@ async def suggestions(customer_id: str, client: Nessie):
 @router.post("/news/feed")
 async def feed(body: NewsRequest, request: Request, client: Nessie, db: DB):
     customer = client.customer_id(body.customer_id)
-    prefs = read_preferences(db, customer).model_copy(update={"goals": list(NEWS_GOALS)})
-    return await request.app.state.personal_news.feed(customer, prefs)
+    return await request.app.state.personal_news.feed(customer, read_preferences(db, customer))

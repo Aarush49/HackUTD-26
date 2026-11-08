@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Tabs, router } from 'expo-router';
 import BottomSheet, {
@@ -12,10 +12,8 @@ import { TabBar } from '@/components/navigation';
 import { BrandHeader } from '@/components/BrandHeader';
 import { useFinanceStore } from '@/lib/store';
 import { colors } from '@/lib/theme';
-import { ReducedMotionContext } from '@/lib/motion';
 
 export default function TabsLayout() {
-  const reduceMotion = useContext(ReducedMotionContext);
   const { sheet, closeSheet, data, selectedGoal } = useFinanceStore();
   const [headline, setHeadline] = useState('');
   const insets = useSafeAreaInsets();
@@ -36,7 +34,6 @@ export default function TabsLayout() {
       <Tabs
         tabBar={(props) => <TabBar {...props} />}
         screenOptions={{
-          animation: reduceMotion ? 'none' : 'fade',
           headerShown: true,
           headerTransparent: true,
           headerTitle: () => <BrandHeader compact />,
@@ -144,6 +141,7 @@ export default function TabsLayout() {
                 <Text style={s.action}>Wait</Text>
                 <Text style={s.action}>Do nothing</Text>
               </View>
+              <Text style={s.note}>Informational, not financial advice.</Text>
             </>
           ) : (
             <>
@@ -290,6 +288,12 @@ const s = StyleSheet.create({
     marginTop: 8,
   },
   action: { fontFamily: 'Inter_700Bold', color: colors.ink, minHeight: 44 },
+  note: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 9,
+    textAlign: 'center',
+    color: colors.muted,
+  },
   primary: {
     minHeight: 44,
     backgroundColor: colors.pink,

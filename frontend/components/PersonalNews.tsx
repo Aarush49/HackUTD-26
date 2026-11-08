@@ -1,15 +1,15 @@
-// Host adapter for Canopy's fixed demo news goals.
+// Host adapter for main's finance snapshot/store. Portable UI remains unchanged.
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Text } from "react-native";
 import { api, displayDate, resolveCustomerId } from "@/lib/api";
+import { useFinanceStore } from "@/lib/store";
 import { Badge, Button3D, Card, Eyebrow } from "./ui";
 import { NewsProvider, NewsSetup as PortableSetup, PersonalNews as PortableNews } from "../features/personal-news/PersonalNews";
 
-const goalNames = ["Japan trip", "Buy a house", "New car"];
-
 function Provider({ children }: { children: ReactNode }) {
-  return <NewsProvider value={{ api, displayDate, goalNames, fixedGoals: true, ui: { Badge, Button3D, Card, Eyebrow } }}>{children}</NewsProvider>;
+  const goals = useFinanceStore(state => state.data.goals);
+  return <NewsProvider value={{ api, displayDate, goalNames: goals.map(goal => goal.title), ui: { Badge, Button3D, Card, Eyebrow } }}>{children}</NewsProvider>;
 }
 function Identity({ customerId, children }: { customerId?: string; children: (id: string) => ReactNode }) {
   const [id, setId] = useState(customerId);

@@ -1,7 +1,4 @@
-
 import { create } from 'zustand';
-import { api, resolveCustomerId } from '@/lib/api';
-import type { Goal } from '@/lib/api';
 import { fetchNessieSnapshot } from '@/lib/finance/api';
 import type { NessieSnapshot } from '@/lib/finance/api';
 import { buildData, demoSnapshot } from '@/lib/finance/data';
@@ -10,7 +7,6 @@ import type { FinanceData, Simulation, Tab } from '@/lib/finance/types';
 type State = {
   data: FinanceData;
   snapshot?: NessieSnapshot;
-  savedGoals: Goal[];
   loadFailed: boolean;
   tab: Tab;
   sheet: null | 'whatif' | 'goal' | 'sapling';
@@ -19,8 +15,6 @@ type State = {
   period: 'Week' | 'Month' | 'Year';
   sim?: Simulation;
   load: (signal: AbortSignal) => Promise<void>;
-  loadGoals: (signal: AbortSignal) => Promise<void>;
-  addGoal: (goal: Goal) => void;
   clear: () => void;
   setTab: (tab: Tab) => void;
   openSheet: (sheet: State['sheet']) => void;
@@ -34,17 +28,15 @@ type State = {
 
 const demoData = buildData(demoSnapshot);
 const demoSettings = demoData.simulate.settings;
-
 const demoSimulation = demoSettings && {
   monthly: demoSettings.monthly.initial,
   years: demoSettings.years.initial,
   rate: demoSettings.rate.initial,
 };
 
-export const useFinanceStore = create<State>((set, get) => ({
+export const useFinanceStore = create<State>((set) => ({
   data: demoData,
   snapshot: demoSnapshot,
-  savedGoals: [],
   loadFailed: false,
   tab: 'today',
   sheet: null,
@@ -52,93 +44,39 @@ export const useFinanceStore = create<State>((set, get) => ({
   predictMode: 'news',
   period: 'Month',
   sim: demoSimulation,
-
   load: async (signal) => {
     set({ loadFailed: false });
-
     try {
       const snapshot = await fetchNessieSnapshot(signal);
-
       if (signal.aborted) return;
-
-      const data = buildData(snapshot, get().savedGoals);
+      const data = buildData(snapshot);
       const settings = data.simulate.settings;
-
       const sim = settings && {
         monthly: settings.monthly.initial,
         years: settings.years.initial,
         rate: settings.rate.initial,
       };
-
       set({ snapshot, data, sim });
     } catch {
-      if (!signal.aborted) {
-        set({ loadFailed: true });
-      }
+      if (!signal.aborted) set({ loadFailed: true });
     }
   },
-
-  loadGoals: async (signal) => {
-    const customer = await resolveCustomerId(signal);
-
-    const savedGoals = await api<Goal[]>(
-      `/goals/${encodeURIComponent(customer)}`,
-      undefined,
-      signal
-    );
-
-    if (!signal.aborted) {
-      set({
-        savedGoals,
-        data: buildData(get().snapshot, savedGoals),
-      });
-    }
-  },
-
-  addGoal: (goal) =>
-    set(({ savedGoals, snapshot }) => {
-      const goals = [
-        ...savedGoals.filter(({ id }) => id !== goal.id),
-        goal,
-      ];
-
-      return {
-        savedGoals: goals,
-        data: buildData(snapshot, goals),
-      };
-    }),
-
   clear: () =>
     set({
       snapshot: demoSnapshot,
-      savedGoals: [],
       data: demoData,
       sim: demoSimulation,
       loadFailed: false,
     }),
-
   setTab: (tab) => set({ tab }),
-
   openSheet: (sheet) => set({ sheet }),
-
   closeSheet: () => set({ sheet: null }),
-
-  selectGoal: (selectedGoal) =>
-    set({ selectedGoal, sheet: 'goal' }),
-
-  inspectGoal: (selectedGoal) =>
-    set({ selectedGoal, sheet: 'sapling' }),
-
-  setPredictMode: (predictMode) =>
-    set({ predictMode }),
-
-  setPeriod: (period) =>
-    set({ period }),
-
+  selectGoal: (selectedGoal) => set({ selectedGoal, sheet: 'goal' }),
+  inspectGoal: (selectedGoal) => set({ selectedGoal, sheet: 'sapling' }),
+  setPredictMode: (predictMode) => set({ predictMode }),
+  setPeriod: (period) => set({ period }),
   setSim: (key, value) =>
     set((state) =>
-      state.sim
-        ? { sim: { ...state.sim, [key]: value } }
-        : state
+      state.sim ? { sim: { ...state.sim, [key]: value } } : state
     ),
 }));

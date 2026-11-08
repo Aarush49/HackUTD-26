@@ -38,7 +38,7 @@ export class MockAuthService implements AuthService {
     await wait();
     const session = {
       token: `demo-${Date.now()}`,
-      user: { id: 'demo-user', name: 'Kaartik', email },
+      user: { id: 'demo-user', name: 'Jordan', email },
     };
     await writeSession(JSON.stringify(session));
     return session;

@@ -1,25 +1,24 @@
 import { useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { api, money } from "@/lib/api";
-import type { Account, Goal } from "@/lib/api";
+import type { Dashboard, Goal } from "@/lib/api";
+import { useFinanceStore } from "@/lib/store";
 import { colors } from "@/lib/theme";
 import { Button3D, Card, Eyebrow } from "./ui";
 
-export function GoalEditor({ customerId, accounts, goal, initialName = "", onSaved, onCancel }: {
-  customerId: string; accounts: Account[]; goal?: Goal; initialName?: string;
-  onSaved: (goal: Goal) => void; onCancel?: () => void;
+export function GoalEditor({ dashboard, goal, initialName = "", onSaved, onCancel }: {
+  dashboard: Dashboard; goal?: Goal; initialName?: string; onSaved: () => void; onCancel?: () => void;
 }) {
+  const load = useFinanceStore(state => state.load);
   const [name, setName] = useState(goal?.name ?? initialName);
   const [target, setTarget] = useState(String(goal?.target_amount ?? ""));
-  const [monthly, setMonthly] = useState(String(goal?.monthly_contribution ?? "0"));
+  const [monthly, setMonthly] = useState(String(goal?.monthly_contribution ?? ""));
   const [date, setDate] = useState(goal?.target_date ?? "");
   const [accountId, setAccountId] = useState(goal?.funding_account_id ?? null);
   const [busy, setBusy] = useState(false);
   const saving = useRef(false);
   const [error, setError] = useState<string | null>(null);
-  const fundingAccounts = accounts.filter(account =>
-    account.balance !== null && ["checking", "savings"].includes(account.type.toLowerCase())
-  );
+  const accounts = dashboard.accounts.filter(account => ["checking", "savings"].includes(account.type.toLowerCase()));
 
   async function save() {
     if (saving.current) return;
@@ -29,11 +28,14 @@ export function GoalEditor({ customerId, accounts, goal, initialName = "", onSav
     try {
       const details = {name: name.trim(), target_amount: target.trim(), monthly_contribution: monthly.trim(),
         target_date: date.trim() || null, funding_account_id: accountId};
-      const saved = goal
-        ? await api<Goal>(`/goals/${encodeURIComponent(goal.id)}`,
-            {...details, ...(accountId !== goal.funding_account_id ? {initial_funded_amount: null} : {})}, undefined, "PATCH")
-        : await api<Goal>("/goals", {...details, customer_id: customerId});
-      onSaved(saved);
+      if (goal) {
+        await api<Goal>(`/goals/${encodeURIComponent(goal.id)}`,
+          {...details, ...(accountId !== goal.funding_account_id ? {initial_funded_amount: null} : {})}, undefined, "PATCH");
+      } else {
+        await api<Goal>("/goals", {...details, customer_id: dashboard.customer.id});
+      }
+      onSaved();
+      void load(new AbortController().signal);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Could not save your goal.");
     } finally {
@@ -56,7 +58,7 @@ export function GoalEditor({ customerId, accounts, goal, initialName = "", onSav
       <Pressable disabled={busy} onPress={() => setAccountId(null)} style={[s.option, accountId === null && s.selected]}>
         <Text style={s.text}>No linked account</Text>
       </Pressable>
-      {fundingAccounts.map(account => <Pressable key={account.id} disabled={busy} onPress={() => setAccountId(account.id)}
+      {accounts.map(account => <Pressable key={account.id} disabled={busy} onPress={() => setAccountId(account.id)}
         style={[s.option, accountId === account.id && s.selected]}>
         <Text style={s.text}>{account.nickname || account.type} · {money(account.balance)}</Text>
       </Pressable>)}
