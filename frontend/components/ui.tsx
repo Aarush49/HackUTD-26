@@ -1,5 +1,6 @@
-import{ReactNode}from"react";import{ActivityIndicator,Pressable,StyleProp,StyleSheet as NativeStyleSheet,Text,View,ViewStyle,useWindowDimensions}from"react-native";import{BlurView}from"expo-blur";import Svg,{Circle,Polyline,Text as SvgText}from"react-native-svg";import{colors,radii}from"@/lib/theme";
+import{ReactNode}from"react";import{ActivityIndicator,Pressable,StyleProp,StyleSheet as NativeStyleSheet,Text,View,ViewStyle,useWindowDimensions}from"react-native";import{BlurView}from"expo-blur";import Animated,{FadeIn}from"react-native-reanimated";import Svg,{Circle,Path,Polyline,Text as SvgText}from"react-native-svg";import{colors,radii}from"@/lib/theme";
 const StyleSheet:any=NativeStyleSheet;
+const ReactNodeFragment=({children}:{children:ReactNode})=><>{children}</>;
 export function Card({children,onClick,style}:{children:ReactNode;className?:string;onClick?:()=>void;style?:StyleProp<ViewStyle>}){const body=<BlurView intensity={28} tint="light" style={[s.card,style]}><View style={s.cardOverlay}/><View style={{zIndex:1}}>{children}</View></BlurView>;return onClick?<Pressable onPress={onClick} style={({pressed})=>({transform:[{scale:pressed?.99:1}]})}>{body}</Pressable>:body}
 export function Eyebrow({children}:{children:ReactNode}){return <Text style={s.eyebrow}>{children}</Text>};export function BigNumber({children}:{children:ReactNode;className?:string}){return <Text style={s.big}>{children}</Text>};
 export function Badge({children,tone="blue"}:{children:ReactNode;tone?:"blue"|"pink"|"green"|"amber"}){const m={blue:["#D9F2FD","#11658C"],pink:["#FFE0EF","#B71561"],green:["#DCF7E8","#14714D"],amber:["#FFF0CE","#98610A"]}[tone];return <View style={[s.badge,{backgroundColor:m[0]}]}><Text style={[s.badgeText,{color:m[1]}]}>{children}</Text></View>}
@@ -41,7 +42,17 @@ export function LineChartWithNodes({ data, lines, height=210 }: {
 }
 
 export function BalanceAreaChart({ plans, data }: { plans: {name:string;color:string}[]; data: Record<string,unknown>[] }) {
-  return <LineChartWithNodes data={data} lines={plans.map(plan => ({key:plan.name,color:plan.color}))} height={230}/>;
+  const w=330,h=230,left=38,right=12,top=14,bottom=28;
+  const values=data.flatMap(row=>plans.map(plan=>Number(row[plan.name])||0));
+  const min=Math.min(...values),max=Math.max(...values);
+  const x=(index:number)=>left+index*(w-left-right)/(data.length-1);
+  const y=(value:number)=>top+(max-value)/(max-min||1)*(h-top-bottom);
+  const animationKey=data.map(row=>plans.map(plan=>row[plan.name]).join("-")).join("|");
+  return <Animated.View key={animationKey} entering={FadeIn.duration(350)}><Svg width="100%" viewBox={`0 0 ${w} ${h}`}>
+    {[0,.5,1].map((ratio,index)=>{const gridY=top+ratio*(h-top-bottom),value=Math.round(max-ratio*(max-min));return <ReactNodeFragment key={index}><Path d={`M ${left} ${gridY} H ${w-right}`} stroke="rgba(11,58,91,.08)" strokeWidth="1"/><SvgText x={left-5} y={gridY+3} fill={colors.muted} fontSize="8" textAnchor="end">{`$${Math.round(value/1000)}k`}</SvgText></ReactNodeFragment>;})}
+    {plans.map((plan,index)=>{const points=data.map((row,rowIndex)=>[x(rowIndex),y(Number(row[plan.name])||0)] as const),dotted=index===plans.length-1;return <ReactNodeFragment key={plan.name}><Polyline points={points.map(point=>point.join(",")).join(" ")} fill="none" stroke={plan.color} strokeWidth="3" strokeDasharray={dotted?"3 7":undefined}/>{points.map(([cx,cy],pointIndex)=><Circle key={pointIndex} cx={cx} cy={cy} r="4.5" fill={dotted&&pointIndex===points.length-1?colors.pink:"white"} stroke={plan.color} strokeWidth="2.5"/>)}</ReactNodeFragment>;})}
+    {data.map((row,index)=><SvgText key={index} x={x(index)} y={h-7} fill={colors.muted} fontSize="9" textAnchor="middle">{String(row.label)}</SvgText>)}
+  </Svg></Animated.View>;
 }
 
 export function ChunkySlider({label,value,min,max,step=1,suffix="",onChange}:{label:string;value:number;min:number;max:number;step?:number;suffix?:string;onChange:(n:number)=>void}){const pct=(value-min)/(max-min);return <View style={{marginVertical:12}}><View style={s.row}><Text style={s.label}>{label}</Text><Text style={s.strong}>{value.toLocaleString()}{suffix}</Text></View><Pressable onPress={e=>{const x=e.nativeEvent.locationX;onChange(Math.max(min,Math.min(max,Math.round((min+(max-min)*x/330)/step)*step)))}} style={s.track}><View style={[s.fill,{width:`${pct*100}%`}]}><View style={s.thumb}/></View></Pressable></View>}

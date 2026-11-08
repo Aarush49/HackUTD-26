@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { Children, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { ArrowRight, ChevronRight, CircleDollarSign, Landmark, Newspaper, ShieldCheck, Sparkles, TrendingUp, WalletCards, Wrench } from "lucide-react-native";
 import { api, displayDate, money, number } from "@/lib/api";
 import type { Account, HeadlineAnalysis, Risk, Simulation } from "@/lib/api";
+import { mockData } from "@/lib/mock";
 import { goalViews, headlineExamples, shockPresets, useFinanceStore } from "@/lib/store";
 import { colors } from "@/lib/theme";
 import { Badge, BalanceAreaChart, BigNumber, Button3D, Card, ChunkySlider, Eyebrow, Heading, LineChartWithNodes, SegmentedPill, StatTile, TrustTag } from "./ui";
@@ -14,8 +15,10 @@ import { SkyBackground } from "./Background";
 function ScreenShell({ children }: { children?: ReactNode }) {
   const { status, error, load } = useFinanceStore();
   useEffect(() => { void load(); }, [load]);
-  return <SkyBackground><GardenLayer/><ScrollView contentContainerStyle={s.screen} showsVerticalScrollIndicator={false}>
-    {status === "ready" ? children : status === "error" ?
+  const items = Children.toArray(children);
+  const ready = status === "ready";
+  return <SkyBackground><GardenLayer/>{ready && items[0] ? <View style={s.fixedHeader}>{items[0]}</View> : null}<ScrollView contentContainerStyle={s.screen} showsVerticalScrollIndicator={false}>
+    {ready ? items.slice(1) : status === "error" ?
       <Card><Eyebrow>FINANCIAL DATA UNAVAILABLE</Eyebrow><Text accessibilityRole="alert" style={s.sub}>{error}</Text>
         <Button3D onClick={() => void load(true)}>Retry connection</Button3D>
       </Card> : <Card><ActivityIndicator color={colors.ink}/><Text style={s.sub}>Loading Nessie data…</Text></Card>}
@@ -96,21 +99,24 @@ export function PictureScreen() {
   }
   const groups = [...new Set(accounts.map(account => account.kind))];
   const current = number(dashboard.known_account_net_worth);
-  const months = period === "Year" ? 12 : period === "Month" ? 1 : 0;
-  const monthly = baseline?.monthly.slice(1, months + 1) ?? [];
-  const chart = [{ label: "Now", value: current, projected: number(baseline?.monthly[0]?.known_account_net_worth) },
-    ...monthly.map(row => ({ label: displayDate(row.date, {month:"short"}), value: null, projected: number(row.known_account_net_worth) }))];
+  const periodData = mockData.picture.periods[period];
+  const periodPosition = current === null ? periodData.netPosition : Math.round(current * (1 + periodData.change / 100));
+  const chartOffset = periodPosition - periodData.netPosition;
+  const chart = periodData.chart.map(row => ({
+    ...row,
+    value: typeof row.value === "number" ? row.value + chartOffset : undefined,
+    projected: typeof row.projected === "number" ? row.projected + chartOffset : undefined,
+  }));
   const interest = baseline?.monthly.slice(1, 13).map(row => number(row.interest_paid));
   const annualInterest = interest?.length === 12 && interest.every(value => value !== null) &&
     !baseline?.missing_requirements.length ? interest.reduce((sum, value) => sum + value, 0) : null;
   return <ScreenShell>
     <ScreenIntro eyebrow="THE WHOLE PICTURE" title="Your money," accent="together." sub="Balances and projections for known Nessie accounts."/>
     <SegmentedPill options={["Week","Month","Year"] as const} value={period} onChange={setPeriod}/>
-    <Card><Eyebrow>KNOWN NET POSITION</Eyebrow><BigNumber>{money(current)}</BigNumber>
+    <Card><Eyebrow>KNOWN NET POSITION</Eyebrow><BigNumber>{money(periodPosition)}</BigNumber>
       {chart.some(row => row.value !== null || row.projected !== null) &&
-        <LineChartWithNodes data={chart} lines={[{key:"value",color:colors.ink},{key:"projected",color:colors.pink,dashed:true}]}/>}
-      <Text style={s.small}>{period === "Week" ? "Projections are monthly." :
-        baselineError ?? baseline?.missing_requirements[0] ?? (baseline ? "Current balance and available monthly projection." : "Loading projection…")}</Text>
+        <LineChartWithNodes key={period} data={chart} lines={[{key:"value",color:colors.ink},{key:"projected",color:colors.pink,dashed:true}]}/>}
+      <Text style={s.small}>{`${periodData.change.toFixed(1)}% estimated change · ${period.toLowerCase()} view`}</Text>
     </Card>
     <View style={s.stats}><StatTile label="RUNWAY" value={runwayLabel(baseline)}/>
       <StatTile label="CUSHION" value={money(dashboard.liquid_reserves)} tone="green"/></View>
@@ -130,7 +136,7 @@ export function PictureScreen() {
 }
 
 function StressTest({ customerId }: { customerId: string }) {
-  const { baseline, baselineError, shock, applyShock, fixed, fixShock } = useFinanceStore();
+  const { baseline, baselineError, shock, applyShock } = useFinanceStore();
   const active = shockPresets.find(preset => preset.id === shock);
   const [test, setTest] = useState<{ id: string; result?: Risk; error?: string } | null>(null);
   useEffect(() => {
@@ -145,9 +151,9 @@ function StressTest({ customerId }: { customerId: string }) {
   const result = active ? (test?.id === active.id ? test.result ?? null : null) : baseline;
   const error = active ? (test?.id === active.id ? test.error : null) : baselineError;
   return <>
-    <Card><View style={s.row}><View style={{flex:1}}><Eyebrow>{fixed ? "BASELINE RESTORED" : "FIRST BREAKING POINT"}</Eyebrow>
+    <Card><View style={s.row}><View style={{flex:1}}><Eyebrow>FIRST BREAKING POINT</Eyebrow>
       <BigNumber>{runwayLabel(result)}</BigNumber><Text style={s.small}>{runwayDetail(result, error)}</Text>
-    </View><ShieldCheck size={58} color={fixed ? colors.green : colors.sky}/></View></Card>
+    </View><ShieldCheck size={58} color={colors.sky}/></View></Card>
     <Title eyebrow="HYPOTHETICAL SHOCKS">Where does it bend?</Title>
     <View style={s.shocks}>{shockPresets.map(preset => <Pressable key={preset.id} disabled={!preset.input}
       onPress={() => { if (shock !== preset.id) { setTest(null); applyShock(preset.id); } }}
@@ -159,7 +165,6 @@ function StressTest({ customerId }: { customerId: string }) {
     {active && <Card style={{marginTop:18}}><Eyebrow>FUNDING WATERFALL</Eyebrow>
       <Text style={s.small}>Funding sources and costs are unavailable for this forecast.</Text>
     </Card>}
-    <View style={{height:16}}/><Button3D onClick={fixShock} disabled={!active}>{fixed ? "Baseline restored" : "Reset shock"}</Button3D>
   </>;
 }
 
@@ -327,4 +332,4 @@ function Title({ eyebrow, children }: { eyebrow: string; children: ReactNode }) 
 
 function Advice() { return <Text style={s.advice}>Informational, not financial advice.</Text>; }
 
-const s=StyleSheet.create({screen:{paddingHorizontal:16,paddingTop:64,paddingBottom:130},between:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:8},row:{flexDirection:"row",alignItems:"center",gap:12},sub:{fontFamily:"Inter_400Regular",fontSize:14,lineHeight:21,color:colors.muted,marginTop:8},range:{fontFamily:"Inter_700Bold",fontSize:12,color:"#1B759F"},link:{minHeight:44,flexDirection:"row",gap:7,alignItems:"center"},linkText:{fontFamily:"Inter_700Bold",fontSize:12,color:colors.ink},title:{fontFamily:"Fraunces_600SemiBold",fontSize:27,color:colors.ink,marginTop:4},serif:{fontFamily:"Fraunces_600SemiBold",fontSize:21,color:colors.ink,marginVertical:5},strong:{fontFamily:"Inter_700Bold",fontSize:12,color:colors.ink},small:{fontFamily:"Inter_400Regular",fontSize:11,lineHeight:16,color:colors.muted},mini:{fontFamily:"Inter_400Regular",fontSize:9,color:colors.muted,letterSpacing:.4},timeline:{minHeight:64,flexDirection:"row",alignItems:"center",gap:10},timelineDot:{width:11,height:11,borderRadius:6,borderWidth:2,borderColor:"white",zIndex:2},timelineLine:{position:"absolute",left:5,top:38,height:40,borderLeftWidth:2,borderStyle:"dotted",borderColor:"rgba(11,58,91,.18)"},icon:{width:46,height:46,borderRadius:16,backgroundColor:colors.pale,alignItems:"center",justifyContent:"center"},stats:{flexDirection:"row",gap:9,marginTop:12,marginBottom:9},group:{paddingVertical:12,borderBottomWidth:1,borderColor:"rgba(11,58,91,.09)"},account:{flexDirection:"row",alignItems:"center",gap:10,paddingVertical:8},smallIcon:{width:36,height:36,borderRadius:12,backgroundColor:colors.pale,alignItems:"center",justifyContent:"center"},shocks:{flexDirection:"row",gap:8},shock:{flex:1,minHeight:128,padding:10,borderRadius:20,borderWidth:1,borderColor:"white",backgroundColor:"rgba(255,255,255,.66)",gap:5},shockActive:{borderWidth:2,borderColor:colors.pink,backgroundColor:"#FFF1F8"},track:{height:12,borderRadius:9,backgroundColor:"#E5EDF0",overflow:"hidden",marginVertical:6},input:{flex:1,minHeight:48,borderWidth:1,borderColor:"#CDE4EE",borderRadius:15,paddingHorizontal:13,fontFamily:"Inter_400Regular",color:colors.ink},impact:{minHeight:62,flexDirection:"row",alignItems:"center",gap:7,borderBottomWidth:1,borderColor:"rgba(11,58,91,.1)"},advice:{fontFamily:"Inter_400Regular",textAlign:"center",fontSize:9,color:colors.muted,margin:20}});
+const s=StyleSheet.create({screen:{paddingHorizontal:16,paddingTop:245,paddingBottom:130},fixedHeader:{position:"absolute",top:64,left:16,right:16,zIndex:2},between:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:8},row:{flexDirection:"row",alignItems:"center",gap:12},sub:{fontFamily:"Inter_400Regular",fontSize:14,lineHeight:21,color:colors.muted,marginTop:8},range:{fontFamily:"Inter_700Bold",fontSize:12,color:"#1B759F"},link:{minHeight:44,flexDirection:"row",gap:7,alignItems:"center"},linkText:{fontFamily:"Inter_700Bold",fontSize:12,color:colors.ink},title:{fontFamily:"Fraunces_600SemiBold",fontSize:27,color:colors.ink,marginTop:4},serif:{fontFamily:"Fraunces_600SemiBold",fontSize:21,color:colors.ink,marginVertical:5},strong:{fontFamily:"Inter_700Bold",fontSize:12,color:colors.ink},small:{fontFamily:"Inter_400Regular",fontSize:11,lineHeight:16,color:colors.muted},mini:{fontFamily:"Inter_400Regular",fontSize:9,color:colors.muted,letterSpacing:.4},timeline:{minHeight:64,flexDirection:"row",alignItems:"center",gap:10},timelineDot:{width:11,height:11,borderRadius:6,borderWidth:2,borderColor:"white",zIndex:2},timelineLine:{position:"absolute",left:5,top:38,height:40,borderLeftWidth:2,borderStyle:"dotted",borderColor:"rgba(11,58,91,.18)"},icon:{width:46,height:46,borderRadius:16,backgroundColor:colors.pale,alignItems:"center",justifyContent:"center"},stats:{flexDirection:"row",gap:9,marginTop:12,marginBottom:9},group:{paddingVertical:12,borderBottomWidth:1,borderColor:"rgba(11,58,91,.09)"},account:{flexDirection:"row",alignItems:"center",gap:10,paddingVertical:8},smallIcon:{width:36,height:36,borderRadius:12,backgroundColor:colors.pale,alignItems:"center",justifyContent:"center"},shocks:{flexDirection:"row",gap:8},shock:{flex:1,minHeight:128,padding:10,borderRadius:20,borderWidth:1,borderColor:"white",backgroundColor:"rgba(255,255,255,.66)",gap:5},shockActive:{borderWidth:2,borderColor:colors.pink,backgroundColor:"#FFF1F8"},track:{height:12,borderRadius:9,backgroundColor:"#E5EDF0",overflow:"hidden",marginVertical:6},input:{flex:1,minHeight:48,borderWidth:1,borderColor:"#CDE4EE",borderRadius:15,paddingHorizontal:13,fontFamily:"Inter_400Regular",color:colors.ink},impact:{minHeight:62,flexDirection:"row",alignItems:"center",gap:7,borderBottomWidth:1,borderColor:"rgba(11,58,91,.1)"},advice:{fontFamily:"Inter_400Regular",textAlign:"center",fontSize:9,color:colors.muted,margin:20}});

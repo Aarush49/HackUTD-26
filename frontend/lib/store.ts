@@ -29,7 +29,6 @@ type State = {
   sheet: null | "whatif" | "goal" | "sapling";
   selectedGoal: string | null;
   shock: string | null;
-  fixed: boolean;
   predictMode: "break" | "simulate";
   period: "Week" | "Month" | "Year";
   sim: { monthly: number; years: number; rate: number };
@@ -39,7 +38,6 @@ type State = {
   selectGoal: (id: string) => void;
   inspectGoal: (id: string) => void;
   applyShock: (id: string) => void;
-  fixShock: () => void;
   setPredictMode: (m: State["predictMode"]) => void;
   setPeriod: (p: State["period"]) => void;
   setSim: (k: keyof State["sim"], v: number) => void;
@@ -67,7 +65,7 @@ export function goalViews(dashboard: Dashboard | null, baseline: Risk | null): G
 export const useFinanceStore = create<State>((set, get) => ({
   dashboard: null, baseline: null, baselineError: null, products: null, productsError: null,
   status: "idle", error: null, sheet: null, selectedGoal: null,
-  shock: null, fixed: false, predictMode: "break", period: "Month",
+  shock: null, predictMode: "break", period: "Month",
   sim: { monthly: 650, years: 8, rate: 6.5 },
   load: async (retry = false) => {
     const { status } = get();
@@ -93,8 +91,7 @@ export const useFinanceStore = create<State>((set, get) => ({
   closeSheet: () => set({ sheet: null }),
   selectGoal: id => set({ selectedGoal: id, sheet: "goal" }),
   inspectGoal: id => set({ selectedGoal: id, sheet: "sapling" }),
-  applyShock: id => set({ shock: id, fixed: false }),
-  fixShock: () => set({ shock: null, fixed: true }),
+  applyShock: id => set({ shock: id }),
   setPredictMode: predictMode => set({ predictMode }),
   setPeriod: period => set({ period }),
   setSim: (k, v) => set(s => ({ sim: { ...s.sim, [k]: v } })),

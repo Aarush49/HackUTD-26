@@ -18,6 +18,29 @@ export const mockData: MockData = {
       { label: "Jun", value: 40100 }, { label: "Jul", value: 41800 }, { label: "Aug", value: 43500 }, { label: "Sep", value: 44900 },
       { label: "Oct", value: 46600, projected: 46600 }, { label: "Now", value: 48240, projected: 48240 }, { label: "Dec", projected: 50100 }, { label: "Jan", projected: 51600 }
     ],
+    periods: {
+      Week: {
+        netPosition: 48240, change: 0.7,
+        chart: [
+          { label: "Mon", value: 47890 }, { label: "Tue", value: 47940 }, { label: "Wed", value: 48010 }, { label: "Thu", value: 47970 },
+          { label: "Fri", value: 48120, projected: 48120 }, { label: "Sat", value: 48240, projected: 48240 }, { label: "Sun", projected: 48310 }
+        ]
+      },
+      Month: {
+        netPosition: 48240, change: 2.6,
+        chart: [
+          { label: "Oct 5", value: 47020 }, { label: "Oct 12", value: 47380 }, { label: "Oct 19", value: 47610 },
+          { label: "Oct 26", value: 47900, projected: 47900 }, { label: "Now", value: 48240, projected: 48240 }, { label: "Nov 14", projected: 48620 }
+        ]
+      },
+      Year: {
+        netPosition: 48240, change: 18.4,
+        chart: [
+          { label: "Dec", value: 40740 }, { label: "Feb", value: 41980 }, { label: "Apr", value: 43220 }, { label: "Jun", value: 44760 },
+          { label: "Aug", value: 46210 }, { label: "Oct", value: 47600, projected: 47600 }, { label: "Now", value: 48240, projected: 48240 }, { label: "Feb", projected: 50780 }
+        ]
+      }
+    },
     accounts: [
       { id: "c1", name: "Everyday checking", kind: "Cash", balance: 3240 }, { id: "s1", name: "High-yield savings", kind: "Savings", balance: 12800, rate: 4.35 },
       { id: "cd", name: "12-month CD", kind: "Savings", balance: 6500, rate: 4.65 }, { id: "ira", name: "IRA + 401(k)", kind: "Investments", balance: 68400 },

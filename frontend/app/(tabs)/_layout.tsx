@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Tabs, router } from "expo-router";
-import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { UserRound, X } from "lucide-react-native";
 import { TabBar } from "@/components/navigation";
 import { goalViews, useFinanceStore } from "@/lib/store";
@@ -10,14 +11,15 @@ import { colors } from "@/lib/theme";
 
 export default function TabsLayout() {
   const { sheet, closeSheet, dashboard, baseline, products, productsError, selectedGoal } = useFinanceStore();
-  const ref = useRef<BottomSheet>(null), snaps = useMemo(() => ["38%", "64%"], []), goal = goalViews(dashboard, baseline).find(g => g.id === selectedGoal);
+  const insets = useSafeAreaInsets();
+  const ref = useRef<BottomSheet>(null), snaps = useMemo(() => ["45%", "92%"], []), goal = goalViews(dashboard, baseline).find(g => g.id === selectedGoal);
   useEffect(() => { sheet ? ref.current?.snapToIndex(sheet === "goal" ? 1 : 0) : ref.current?.close(); }, [sheet]);
   const go = (path: "/impact" | "/(tabs)/predict") => { closeSheet(); router.push(path); };
-  return <><Tabs tabBar={p => <TabBar {...p}/>} screenOptions={{ headerShown: true, headerTransparent: true, headerTitle: "canopy", headerTitleStyle: { fontFamily: "Fraunces_600SemiBold", fontSize: 18, color: colors.ink }, headerRight: () => <Pressable accessibilityLabel="Open profile" onPress={() => router.push("/profile")} style={s.profile}><UserRound color={colors.ink} size={20}/></Pressable> }}><Tabs.Screen name="index"/><Tabs.Screen name="picture"/><Tabs.Screen name="goals"/><Tabs.Screen name="predict"/></Tabs><BottomSheet ref={ref} index={-1} snapPoints={snaps} enablePanDownToClose onClose={closeSheet} backgroundStyle={s.sheet}><BottomSheetView style={s.sheetContent}><View style={s.sheetTitle}><Text style={s.title}>{sheet === "goal" && goal ? `Options for ${goal.title}` : sheet === "sapling" ? "Goal progress" : "What would you like to explore?"}</Text><Pressable onPress={closeSheet} style={s.close}><X color={colors.ink}/></Pressable></View>{sheet === "sapling" ? <Text style={s.copy}>{goal?.saved == null ? "Funding is unavailable." : `${money(goal.saved)} of ${money(goal.target)} funded.`}</Text> : sheet === "goal" ? <>
+  return <><Tabs tabBar={p => <TabBar {...p}/>} screenOptions={{ headerShown: true, headerTransparent: true, headerTitle: "canopy", headerTitleStyle: { fontFamily: "Fraunces_600SemiBold", fontSize: 18, color: colors.ink }, headerRight: () => <Pressable accessibilityLabel="Open profile" onPress={() => router.push("/profile")} style={s.profile}><UserRound color={colors.ink} size={20}/></Pressable> }}><Tabs.Screen name="index"/><Tabs.Screen name="picture"/><Tabs.Screen name="goals"/><Tabs.Screen name="predict"/></Tabs><BottomSheet ref={ref} index={-1} snapPoints={snaps} enableDynamicSizing={false} enablePanDownToClose keyboardBehavior="interactive" keyboardBlurBehavior="restore" android_keyboardInputMode="adjustResize" onClose={closeSheet} backgroundStyle={s.sheet}><BottomSheetScrollView contentContainerStyle={[s.sheetContent, { paddingBottom: insets.bottom + 84 }]} keyboardShouldPersistTaps="handled"><View style={s.sheetTitle}><Text style={s.title}>{sheet === "goal" && goal ? `Options for ${goal.title}` : sheet === "sapling" ? "Goal progress" : "What would you like to explore?"}</Text><Pressable onPress={closeSheet} style={s.close}><X color={colors.ink}/></Pressable></View>{sheet === "sapling" ? <Text style={s.copy}>{goal?.saved == null ? "Funding is unavailable." : `${money(goal.saved)} of ${money(goal.target)} funded.`}</Text> : sheet === "goal" ? <>
       {products?.filter(product => product.kind === "cd" || product.kind === "hysa").map(product =>
         <Option key={product.kind} title={product.name} copy={`${product.advantage}. ${product.risk}.`}/>)}
       <Text style={s.copy}>{productsError ?? (products ? "Illustrative products. Comparison requires product terms." : "Loading product options…")}</Text>
-    </> : <><Option title="Use a headline" copy="Paste or pick news and see your estimated impact."/><Action label="Open headline impact" onPress={() => go("/impact")}/><Option title="Apply a shock" copy="Stress-test a surprise and find a way through."/><Action label="Open shock simulator" onPress={() => go("/(tabs)/predict")}/></>}</BottomSheetView></BottomSheet></>;
+    </> : <><Option title="Use a headline" copy="Paste or pick news and see your estimated impact."/><Action label="Open headline impact" onPress={() => go("/impact")}/><Option title="Apply a shock" copy="Stress-test a surprise and find a way through."/><Action label="Open shock simulator" onPress={() => go("/(tabs)/predict")}/></>}</BottomSheetScrollView></BottomSheet></>;
 }
 function Option({ title, copy }: { title: string; copy: string }) { return <View style={s.option}><Text style={s.optionTitle}>{title}</Text><Text style={s.copy}>{copy}</Text></View>; }
 function Action({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable onPress={onPress} style={s.primary}><Text style={s.primaryText}>{label}</Text></Pressable>; }

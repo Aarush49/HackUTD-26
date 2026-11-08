@@ -4,10 +4,11 @@ export type Goal = { id: string; title: string; saved: number; target: number; e
 export type Account = { id: string; name: string; kind: string; balance: number; rate?: number };
 export type Shock = { id: string; title: string; amount: number; detail: string; daysLost: number };
 export type FundingSource = { name: string; amount: number; cost: string; color: string };
+export type PicturePeriod = { netPosition: number; change: number; chart: ChartPoint[] };
 export type MockData = {
   profile: { name: string; demoTag: string; todayLabel: string };
   today: { days: number; range: [number, number]; cause: string; gardenDelta: number; timeline: { day: string; label: string; amount: number; kind: string }[]; headline: string };
-  picture: { netPosition: number; change: number; chart: ChartPoint[]; accounts: Account[]; health: { runway: string; cushion: number; interestDrag: number } };
+  picture: { netPosition: number; change: number; chart: ChartPoint[]; periods: Record<"Week" | "Month" | "Year", PicturePeriod>; accounts: Account[]; health: { runway: string; cushion: number; interestDrag: number } };
   goals: Goal[];
   shocks: Shock[];
   waterfall: FundingSource[];

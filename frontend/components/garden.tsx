@@ -6,7 +6,7 @@ export function GardenLayer(){
   const baseline = useFinanceStore(state => state.baseline);
   const inspectGoal = useFinanceStore(state => state.inspectGoal);
   const goals = goalViews(dashboard, baseline).filter(goal => goal.growth !== null).slice(0,3);
-  return <View pointerEvents="box-none" style={s.layer}><View style={s.soil}/>
+  return <View pointerEvents="none" style={s.layer}><View style={s.soil}/>
     {goals.map((goal,index) => <Sapling key={goal.id} goal={goal} ambient={index===1} onPress={() => inspectGoal(goal.id)}/>)}
   </View>;
 }
