@@ -11,6 +11,7 @@ from app.api.personal_news import purchase_suggestions, Preferences, query_for
 
 
 def test_preferences_roundtrip_and_no_automatic_history_selection(api):
+    assert api.get('/api/news/customer').json() == {'customer_id': 'customer'}
     assert api.get('/api/news/preferences/customer').json()['topics'] == []
     response = api.post('/api/news/preferences', json={'customer_id': 'customer', 'goals': ['Japan trip'],
         'topics': ['hotel prices', 'hotel prices'], 'destination': 'Japan', 'timeframe': 'spring 2027'})
@@ -57,7 +58,7 @@ def test_news_and_gemini_contract_privacy_cache_and_fallback(sandbox):
         assert 'hotel prices' in request.content.decode()
         return httpx.Response(200, json={'candidates': [{'finishReason': 'STOP', 'content': {'parts': [{'text': json.dumps({'articles': [
             {'id': 0, 'summary': 'Hotel costs are changing.', 'why_it_matters': 'May affect your Japan trip.', 'suggested_action': 'Check current hotel quotes.'}]})}]}}]})
-    settings = Settings(nessie_api_key='test-key', nessie_customer_id='customer', database_url='sqlite://', news_api_key='news-test', gemini_api_key='gemini-test')
+    settings = Settings(nessie_api_key='test-key', nessie_customer_id='customer', mongo_uri='memory://', news_api_key='news-test', gemini_api_key='gemini-test')
     with TestClient(create_app(settings, transport=httpx.MockTransport(sandbox), news_transport=httpx.MockTransport(transport))) as client:
         client.post('/api/news/preferences', json={'customer_id': 'customer', 'topics': ['hotel prices'], 'destination': 'Japan'})
         response = client.post('/api/news/feed', json={'customer_id': 'customer'})
@@ -75,7 +76,7 @@ def test_gemini_failure_preserves_publisher_snippets(sandbox):
         if request.url.host == 'newsapi.org':
             return httpx.Response(200, json={'status': 'ok', 'articles': [{'title': 'News', 'description': 'Original snippet', 'url': 'https://example.com'}]})
         return httpx.Response(429)
-    settings = Settings(nessie_api_key='test-key', nessie_customer_id='customer', database_url='sqlite://', news_api_key='news', gemini_api_key='gemini')
+    settings = Settings(nessie_api_key='test-key', nessie_customer_id='customer', mongo_uri='memory://', news_api_key='news', gemini_api_key='gemini')
     with TestClient(create_app(settings, transport=httpx.MockTransport(sandbox), news_transport=httpx.MockTransport(provider))) as client:
         client.post('/api/news/preferences', json={'customer_id': 'customer', 'topics': ['travel']})
         result = client.post('/api/news/feed', json={'customer_id': 'customer'}).json()

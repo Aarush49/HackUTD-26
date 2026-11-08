@@ -1,5 +1,12 @@
 import logging
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+# Ensure the backend directory is in sys.path when executed directly as a script
+_backend_root = str(Path(__file__).resolve().parent.parent)
+if _backend_root not in sys.path:
+    sys.path.insert(0, _backend_root)
 
 import httpx
 from fastapi import FastAPI, Request
@@ -13,8 +20,7 @@ from app.models.database import Base, database
 from app.services.goal_service import GoalConflict
 from app.services.projection_engine import ScenarioInputError
 from app.api import personal_news
-from app.api.personal_news import PersonalNewsService
-from app.features.personal_news import NewsError
+from app.features.personal_news import NewsError, PersonalNewsService
 
 
 def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTransport | None = None,
@@ -26,9 +32,10 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
         # Nessie's query authentication would otherwise appear in HTTPX INFO request logs.
         logging.getLogger("httpx").setLevel(logging.WARNING)
         logging.getLogger("httpcore").setLevel(logging.WARNING)
-        engine, app.state.sessions = database(settings.database_url)
+        mongo_uri = settings.mongo_uri or settings.database_url
+        client, app.state.db = database(mongo_uri, settings.mongo_db_name)
+        app.state.db_client = client
         try:
-            Base.metadata.create_all(engine)
             app.state.nessie = NessieClient(settings, transport)
             app.state.personal_news = PersonalNewsService(settings, news_transport)
             try:
@@ -37,14 +44,15 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
                 await app.state.nessie.close()
                 await app.state.personal_news.close()
         finally:
-            engine.dispose()
+            if hasattr(client, "close"):
+                client.close()
 
     app = FastAPI(title="Financial Health Navigator", version="1.0.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origin_regex=r"https?://(?:localhost|127\.0\.0\.1)(?::\d+)?",
-        allow_methods=["GET", "POST", "PATCH"],
-        allow_headers=["Content-Type"],
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     @app.exception_handler(NessieError)
@@ -62,13 +70,13 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
     async def goal_conflict(_request: Request, error: GoalConflict):
         return JSONResponse(status_code=409, content={"detail": {"code": "goal_conflict", "message": str(error)}})
 
-    @app.exception_handler(NewsError)
-    async def news_error(_request: Request, error: NewsError):
-        return JSONResponse(status_code=error.status_code, content={"detail": error.detail})
-
     @app.get("/health", tags=["System"])
     def health():
         return {"status": "ok"}
+
+    @app.exception_handler(NewsError)
+    async def news_error(_request: Request, error: NewsError):
+        return JSONResponse(status_code=error.status_code, content={"detail": error.detail})
 
     for module in (nessie, customers, accounts, transactions, dashboard, goals, headlines, risk, simulation, products, scenarios, transfers, personal_news):
         app.include_router(module.router, prefix="/api")
@@ -76,3 +84,12 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
 
 
 app = create_app()
+
+
+if __name__ == "__main__":
+    import os
+    import uvicorn
+
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run("app.main:app", host=host, port=port, reload=True)

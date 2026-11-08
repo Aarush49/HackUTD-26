@@ -9,7 +9,7 @@ import { Button3D, Card, Eyebrow } from "./ui";
 export function GoalEditor({ dashboard, goal, initialName = "", onSaved, onCancel }: {
   dashboard: Dashboard; goal?: Goal; initialName?: string; onSaved: () => void; onCancel?: () => void;
 }) {
-  const refresh = useFinanceStore(state => state.refresh);
+  const load = useFinanceStore(state => state.load);
   const [name, setName] = useState(goal?.name ?? initialName);
   const [target, setTarget] = useState(String(goal?.target_amount ?? ""));
   const [monthly, setMonthly] = useState(String(goal?.monthly_contribution ?? ""));
@@ -35,7 +35,7 @@ export function GoalEditor({ dashboard, goal, initialName = "", onSaved, onCance
         await api<Goal>("/goals", {...details, customer_id: dashboard.customer.id});
       }
       onSaved();
-      void refresh();
+      void load(new AbortController().signal);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Could not save your goal.");
     } finally {

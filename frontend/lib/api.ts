@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 type Money = string | number | null;
 
 type Customer = { id: string; first_name: string | null };
@@ -85,7 +87,7 @@ export type Product = {
   risk: string;
 };
 
-const apiOrigin = (process.env.EXPO_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+const apiOrigin = (process.env.EXPO_PUBLIC_API_BASE_URL || (Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://127.0.0.1:8000')).replace(/\/+$/, "");
 
 export async function api<T>(path: string, body?: object, signal?: AbortSignal, method = body ? "POST" : "GET"): Promise<T> {
   let response: Response;
@@ -113,11 +115,8 @@ export async function api<T>(path: string, body?: object, signal?: AbortSignal, 
 export async function resolveCustomerId(): Promise<string> {
   const configured = process.env.EXPO_PUBLIC_NESSIE_CUSTOMER_ID?.trim();
   if (configured) return configured;
-  const customers = await api<Customer[]>("/customers");
-  if (customers.length === 1) return customers[0].id;
-  throw new Error(customers.length
-    ? "Set EXPO_PUBLIC_NESSIE_CUSTOMER_ID to choose a sandbox customer."
-    : "Nessie returned no customers for the configured key.");
+  const result = await api<{customer_id: string}>("/news/customer");
+  return result.customer_id;
 }
 
 export function number(value: Money | undefined): number | null {

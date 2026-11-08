@@ -4,20 +4,12 @@ Mobile-first personal finance demo built with Expo, React Native, TypeScript, an
 
 ## Run
 
-1. Install dependencies: `npm install`
-2. Start Metro: `npx expo start`
-3. Scan the QR code with Expo Go, or press `a` for Android / `i` for iOS.
+1. Configure and run FastAPI with your Nessie key. See the [backend setup](../backend/README.md).
+2. Set `EXPO_PUBLIC_NESSIE_CUSTOMER_ID` in `.env.local`. For Expo Go on a physical phone, set `EXPO_PUBLIC_API_BASE_URL` to your computer's LAN address and run FastAPI with `--host 0.0.0.0`.
+3. Run `npm install` and `npx expo start`.
+4. Scan the QR code with Expo Go, or press `a` for Android / `i` for iOS.
 
-Start FastAPI from `backend` with `python -m uvicorn app.main:app --reload`. Create `frontend/.env.local` with:
-
-```env
-EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
-EXPO_PUBLIC_NESSIE_CUSTOMER_ID=your-sandbox-customer-id
-```
-
-For web on the same computer, run `npm run web`. For a physical phone on the same trusted Wi-Fi network, use your computer's LAN address in the Expo configuration and add `--host 0.0.0.0` to the FastAPI command. Keep the Nessie API key in the backend environment. Reload Expo after changing the customer ID.
-
-The app uses only Expo Go-compatible libraries; no custom native build or Skia is required.
+For a new sandbox customer, run `python seed_canopy_demo.py --customer <customer-id>` from `backend`. The command stores missing demo inputs in a dedicated zero-balance Nessie account and verifies them by reading them back. Canopy reads available balances and posted activity from the customer's banking accounts. It uses the separate demo inputs for figures such as goal targets, rates, and forecast assumptions.
 
 ## Demo authentication
 
@@ -40,9 +32,7 @@ Login and sign-up use a typed mock `AuthService`. Any valid email and password o
 
 - `app/` — Expo Router routes and route guards
 - `components/` — reusable native UI, screens, charts, navigation, and Garden
-- `lib/api.ts` — FastAPI client and response types
-- `lib/store.ts` — dashboard loading and forecast state
+- `lib/finance/` — Nessie-backed API client and dashboard calculations
+- `lib/store.ts` — dashboard, goal, period, and simulator state
 - `lib/auth/` — replaceable auth service and Zustand auth store
 - `lib/theme.ts` — shared colors, spacing, and radii
-
-The finance screens read the selected Nessie sandbox customer through FastAPI. Unavailable values reflect missing upstream data or projection inputs. The shock presets and simulator sliders are hypothetical inputs.

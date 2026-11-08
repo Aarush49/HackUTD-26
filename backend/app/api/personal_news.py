@@ -2,10 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import JSON, String
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.exc import IntegrityError
-from app.models.database import Base
+from pymongo.errors import DuplicateKeyError
 
 from app.api.dependencies import DB, Nessie
 from app.schemas.goals import ResourceID
@@ -16,10 +13,14 @@ from app.features.personal_news import Preferences, PersonalNewsService, purchas
 router = APIRouter(tags=["Personal news"])
 
 
-class NewsPreferencesRow(Base):
-    __tablename__ = "news_preferences"
-    customer_id: Mapped[str] = mapped_column(String(128), primary_key=True)
-    preferences: Mapped[dict] = mapped_column(JSON)
+@router.get("/news/customer")
+async def news_customer(client: Nessie):
+    if client.settings.nessie_customer_id:
+        return {"customer_id": client.customer_id()}
+    customers = await client.customers()
+    if len(customers) == 1:
+        return {"customer_id": customers[0].id}
+    raise HTTPException(422, "Choose a Nessie customer in the frontend or backend configuration.")
 
 
 class Setup(Preferences):
@@ -32,8 +33,8 @@ class NewsRequest(BaseModel):
 
 
 def read_preferences(db, customer):
-    row = db.get(NewsPreferencesRow, customer)
-    return Preferences.model_validate(row.preferences) if row else Preferences()
+    doc = db["news_preferences"].find_one({"_id": customer})
+    return Preferences.model_validate({k: doc[k] for k in Preferences.model_fields if k in doc}) if doc else Preferences()
 
 
 @router.get("/news/preferences/{customer_id}")
@@ -47,20 +48,14 @@ async def save_preferences(body: Setup, client: Nessie, db: DB):
     await client.customer(customer)
     prefs = Preferences.model_validate(body.model_dump(exclude={"customer_id"})).clean()
     data = prefs.model_dump()
-    row = db.get(NewsPreferencesRow, customer)
-    if row:
-        row.preferences = data
+    collection = db["news_preferences"]
+    if collection.find_one({"_id": customer}):
+        collection.update_one({"_id": customer}, {"$set": data})
     else:
-        db.add(NewsPreferencesRow(customer_id=customer, preferences=data))
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        row = db.get(NewsPreferencesRow, customer)
-        if row is None:
-            raise HTTPException(409, "Preferences changed. Please retry.") from None
-        row.preferences = data
-        db.commit()
+        try:
+            collection.insert_one({"_id": customer, **data})
+        except DuplicateKeyError:
+            collection.update_one({"_id": customer}, {"$set": data})
     return prefs
 
 

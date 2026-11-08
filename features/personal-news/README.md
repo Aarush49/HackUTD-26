@@ -1,6 +1,6 @@
 # Portable personal news feature
 
-This package separates reusable functions from this repository's Expo, Nessie, SQLAlchemy, authentication and navigation code. Copy the portable files into another project; adapt the small host-specific boundaries. It is not a universal binary for arbitrary framework versions.
+This package separates reusable functions from this repository's Expo, Nessie, MongoDB, authentication and navigation code. Copy the portable files into another project; adapt the small host-specific boundaries. It is not a universal binary for arbitrary framework versions.
 
 ## Files to copy
 
@@ -8,7 +8,7 @@ This package separates reusable functions from this repository's Expo, Nessie, S
 | --- | --- |
 | `python/personal_news.py` | Questionnaire data model, local purchase analysis, query construction, News API retrieval and Gemini formatting |
 | `react-native/PersonalNews.tsx` | Questionnaire and news feed with injected API, UI and date formatting |
-| `reference/backend_adapter.py` | Current FastAPI/Nessie/SQLAlchemy adapter, for reference when wiring the destination project |
+| `reference/backend_adapter.py` | Current FastAPI/Nessie/Mongo adapter, for reference when wiring the destination project |
 | `reference/frontend_adapter.tsx` | Current app adapter, showing runtime injection |
 | `requirements.txt` | Standalone Python core dependencies |
 
@@ -55,7 +55,7 @@ Keep keys server-side and out of source control. Translate `NewsError.status_cod
 - `GET /api/news/suggestions/{customer_id}` → `{suggestions: [{topic, purchase_count, latest_date}], window_days: 60}`. This request never saves inferred interests.
 - `POST /api/news/feed` with `{customer_id}` → `{articles, ai_formatted, notice, checked_at, cached}`. Articles include stable source URL, publisher, date, headline, summary, possible relevance, and a suggested next step.
 
-Persist preferences in the host's database, keyed by the authenticated customer. Do not copy database records or credentials between computers. The current SQLAlchemy adapter stores preferences in the `news_preferences` table and the normalized purchase adapter uses Nessie. Other projects may use SQL, files or another service without changing the portable core.
+Persist preferences in the host's database, keyed by the authenticated customer. Do not copy database records or credentials between computers. The current Mongo adapter stores preferences in `news_preferences` and the normalized purchase adapter uses Nessie. Other projects may use SQL, files or another service without changing the portable core.
 
 ## Frontend integration
 

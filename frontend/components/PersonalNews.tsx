@@ -1,17 +1,32 @@
-// Project-specific adapter. The feature itself has no app aliases or store imports.
-import { api, displayDate } from "@/lib/api";
+// Host adapter for main's finance snapshot/store. Portable UI remains unchanged.
+import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
+import { Text } from "react-native";
+import { api, displayDate, resolveCustomerId } from "@/lib/api";
 import { useFinanceStore } from "@/lib/store";
 import { Badge, Button3D, Card, Eyebrow } from "./ui";
 import { NewsProvider, NewsSetup as PortableSetup, PersonalNews as PortableNews } from "../features/personal-news/PersonalNews";
-import type { ReactNode } from "react";
 
 function Provider({ children }: { children: ReactNode }) {
-  const goals = useFinanceStore(state => state.dashboard?.goals);
-  return <NewsProvider value={{ api, displayDate, goalNames: (goals ?? []).map(goal => goal.name), ui: { Badge, Button3D, Card, Eyebrow } }}>{children}</NewsProvider>;
+  const goals = useFinanceStore(state => state.data.goals);
+  return <NewsProvider value={{ api, displayDate, goalNames: goals.map(goal => goal.title), ui: { Badge, Button3D, Card, Eyebrow } }}>{children}</NewsProvider>;
 }
-export function NewsSetup(props: { customerId: string; onSaved: () => void }) {
-  return <Provider><PortableSetup {...props}/></Provider>;
+function Identity({ customerId, children }: { customerId?: string; children: (id: string) => ReactNode }) {
+  const [id, setId] = useState(customerId);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    let active = true;
+    setError(""); setId(customerId);
+    if (!customerId) void resolveCustomerId().then(value => { if (active) setId(value); }, reason => { if (active) setError(reason.message); });
+    return () => { active = false; };
+  }, [customerId, retry]);
+  if (!id) return <Card><Text>{error || "Loading news profile…"}</Text>{!!error && <Button3D onClick={() => setRetry(value => value + 1)}>Retry news profile</Button3D>}</Card>;
+  return <Provider>{children(id)}</Provider>;
 }
-export function PersonalNews(props: { customerId: string }) {
-  return <Provider><PortableNews {...props}/></Provider>;
+export function NewsSetup(props: { customerId?: string; onSaved: () => void }) {
+  return <Identity customerId={props.customerId}>{id => <PortableSetup key={id} customerId={id} onSaved={props.onSaved}/>}</Identity>;
+}
+export function PersonalNews(props: { customerId?: string }) {
+  return <Identity customerId={props.customerId}>{id => <PortableNews key={id} customerId={id}/>}</Identity>;
 }

@@ -2,7 +2,7 @@
 
 ## Personalized news setup
 
-Set `NEWS_API_KEY`, `GEMINI_API_KEY`, and `GEMINI_MODEL=gemini-3.1-flash-lite` in the ignored backend `.env`. Never expose these as `EXPO_PUBLIC_` variables. News preferences are saved per sandbox customer in SQLAlchemy's `news_preferences` table. Existing demo authentication remains a trusted-local sandbox flow, not production authorization.
+Set `NEWS_API_KEY`, `GEMINI_API_KEY`, and `GEMINI_MODEL=gemini-3.1-flash-lite` in the ignored backend `.env`. Never expose these as `EXPO_PUBLIC_` variables. News preferences are saved per sandbox customer in MongoDB's `news_preferences` collection. Existing demo authentication remains a trusted-local sandbox flow, not production authorization.
 
 The onboarding questionnaire asks about goals, topics, places, and timing. It is also available from Predict → News → Set up or edit my news interests. Optional purchase suggestions inspect posted purchases over 60 days, rank broad allowed categories by frequency and recency, and require explicit user selection before use. Raw purchases, merchants, account IDs, and balances are never sent to News API or Gemini.
 
@@ -30,6 +30,8 @@ Sign in to [Nessie](https://prod.nessieisreal.com/) and copy your sandbox key in
 ```
 
 Open [Swagger UI](http://127.0.0.1:8000/docs). The local service uses a shared sandbox key and is designed for a trusted local environment.
+
+The Expo app reads `GET /api/canopy?customer_id=<customer-id>`. To populate demo assumptions for a new sandbox customer, run `python seed_canopy_demo.py --customer <customer-id>` from this directory. This command writes tagged zero-dollar deposits to a dedicated metadata account. It skips sections already present and verifies the saved records. The FastAPI routes read from Nessie, and the financial aggregator excludes the metadata account from balances and activity.
 
 ## Choose a customer and inspect the data
 
