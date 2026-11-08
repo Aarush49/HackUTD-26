@@ -191,41 +191,65 @@ export function PictureScreen() {
       />
       <Title eyebrow="ACCOUNTS">Where it lives.</Title>
       <Card>
-        {groups.map((group) => (
-          <View key={group} style={s.group}>
-            <Text style={s.serif}>{group}</Text>
-            {picture.accounts
-              .filter((account) => account.kind === group)
-              .map((account) => (
-                <View key={account.id} style={s.account}>
-                  <View style={s.smallIcon}>
-                    {group === 'Loans' ? (
-                      <Landmark color={colors.ink} size={17} />
-                    ) : group === 'Credit' ? (
-                      <WalletCards color={colors.ink} size={17} />
-                    ) : (
-                      <CircleDollarSign color={colors.ink} size={17} />
-                    )}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.strong}>{account.name}</Text>
-                    {account.rate !== undefined && (
-                      <Text style={s.mini}>{account.rate}% estimated rate</Text>
-                    )}
-                  </View>
-                  <Text
+        {groups.map((group, index) => {
+          const isFirst = index === 0;
+          const isLast = index === groups.length - 1;
+          const accounts = picture.accounts.filter(
+            (account) => account.kind === group
+          );
+          return (
+            <View
+              key={group}
+              style={[
+                s.group,
+                isFirst && s.firstGroup,
+                isLast && s.lastGroup,
+              ]}
+            >
+              <Text style={[s.serif, isFirst && { marginTop: 0 }]}>
+                {group}
+              </Text>
+              {accounts.map((account, accountIndex) => {
+                const isLastAccount =
+                  isLast && accountIndex === accounts.length - 1;
+                return (
+                  <View
+                    key={account.id}
                     style={[
-                      s.strong,
-                      account.balance !== undefined &&
-                        account.balance < 0 && { color: colors.danger },
+                      s.account,
+                      isLastAccount && { paddingBottom: 0 },
                     ]}
                   >
-                    {money(account.balance)}
-                  </Text>
-                </View>
-              ))}
-          </View>
-        ))}
+                    <View style={s.smallIcon}>
+                      {group === 'Loans' ? (
+                        <Landmark color={colors.ink} size={17} />
+                      ) : group === 'Credit' ? (
+                        <WalletCards color={colors.ink} size={17} />
+                      ) : (
+                        <CircleDollarSign color={colors.ink} size={17} />
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.strong}>{account.name}</Text>
+                      {account.rate !== undefined && (
+                        <Text style={s.mini}>{account.rate}% estimated rate</Text>
+                      )}
+                    </View>
+                    <Text
+                      style={[
+                        s.strong,
+                        account.balance !== undefined &&
+                          account.balance < 0 && { color: colors.danger },
+                      ]}
+                    >
+                      {money(account.balance)}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          );
+        })}
       </Card>
     </ScreenShell>
   );
@@ -548,6 +572,13 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderColor: 'rgba(11,58,91,.09)',
+  },
+  firstGroup: {
+    paddingTop: 0,
+  },
+  lastGroup: {
+    borderBottomWidth: 0,
+    paddingBottom: 0,
   },
   account: {
     flexDirection: 'row',
