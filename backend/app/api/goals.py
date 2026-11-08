@@ -4,7 +4,7 @@ from app.api.dependencies import DB, Nessie
 from app.models.goals import GoalRow
 from app.schemas.goals import Goal, GoalCreate, GoalInput, GoalPatch
 from app.schemas.simulation import ScenarioRequest
-from app.services.goal_service import list_goals, save_goal, validate_funding
+from app.services.goal_service import get_goal, list_goals, save_goal, validate_funding
 from app.services.scenario_service import compare, load_context
 
 router = APIRouter(tags=["Goals"])
@@ -25,13 +25,13 @@ async def create_goal(request: GoalCreate, client: Nessie, db: DB) -> Goal:
 
 @router.patch("/goals/{goal_id}")
 async def patch_goal(goal_id: str, request: GoalPatch, client: Nessie, db: DB) -> Goal:
-    row = db.get(GoalRow, goal_id)
-    if row is None:
+    existing = get_goal(db, goal_id)
+    if existing is None:
         raise HTTPException(404, "Goal not found")
-    values = Goal.model_validate(row).model_dump(exclude={"id", "customer_id"})
+    values = existing.model_dump(exclude={"id", "customer_id"})
     goal = GoalInput.model_validate(values | request.model_dump(exclude_unset=True))
-    await validate_funding(client, row.customer_id, goal)
-    return save_goal(db, row.customer_id, goal, row)
+    await validate_funding(client, existing.customer_id, goal)
+    return save_goal(db, existing.customer_id, goal, row=existing, goal_id=goal_id)
 
 
 @router.post("/goals/project")

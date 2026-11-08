@@ -67,9 +67,9 @@ def sandbox():
 
 
 @pytest.fixture
-def api(sandbox, tmp_path):
+def api(sandbox):
     settings = Settings(nessie_api_key="test-key", nessie_customer_id="customer",
-                        database_url=f"sqlite:///{tmp_path / 'test.db'}")
+                        mongo_uri="mongomock://localhost", mongo_db_name="test_financial_navigator")
     with TestClient(create_app(settings, transport=httpx.MockTransport(sandbox))) as client:
         yield client
 
