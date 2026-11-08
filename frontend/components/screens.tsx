@@ -41,11 +41,11 @@ import { GardenLayer, Sapling } from './garden';
 import { SkyBackground } from './Background';
 import { BrandHeader } from './BrandHeader';
 
-function ScreenShell({ children }: { children: ReactNode }) {
+export function ScreenShell({ children }: { children: ReactNode }) {
   const insets = useSafeAreaInsets();
   const segments = useSegments();
   const insideTabs = segments[0] === '(tabs)';
-  const titleTop = insets.top + 64;
+  const titleTop = insets.top + 116;
   return (
     <SkyBackground>
       <GardenLayer />
@@ -72,29 +72,31 @@ function ScreenShell({ children }: { children: ReactNode }) {
   );
 }
 
-function ScreenIntro({
+export function ScreenIntro({
   eyebrow,
   title,
   accent,
   sub,
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
-  accent: string;
+  accent?: string;
   sub?: string;
 }) {
   return (
     <View style={{ marginBottom: 20 }}>
-      <View style={s.between}>
-        <Eyebrow>{eyebrow}</Eyebrow>
-      </View>
+      {eyebrow ? (
+        <View style={s.between}>
+          <Eyebrow>{eyebrow}</Eyebrow>
+        </View>
+      ) : null}
       <Heading accent={accent}>{title}</Heading>
       {sub && <Text style={s.sub}>{sub}</Text>}
     </View>
   );
 }
 
-function ProgressRing({ progress }: { progress?: number }) {
+export function ProgressRing({ progress }: { progress?: number }) {
   const value = Math.max(0, Math.min(1, progress ?? 0));
   const radius = 25,
     circumference = 2 * Math.PI * radius;
@@ -130,78 +132,7 @@ function ProgressRing({ progress }: { progress?: number }) {
   );
 }
 
-export function TodayScreen() {
-  const { data, selectGoal, loadFailed } = useFinanceStore();
-  const goal = data.goals[0];
-  return (
-    <ScreenShell>
-      <ScreenIntro
-        eyebrow={data.profile.todayLabel}
-        title="Good morning,"
-        accent={`${data.profile.name}.`}
-        sub="Your plans are taking root."
-      />
-      <Card>
-        <Eyebrow>NET POSITION · ESTIMATED</Eyebrow>
-        <BigNumber>
-          {loadFailed
-            ? 'Unavailable'
-            : money(data.picture.periods.Month.netPosition)}
-        </BigNumber>
-      </Card>
-      <Pressable onPress={() => selectGoal(goal.id)}>
-        <Card style={{ marginTop: 18 }}>
-          <View style={s.between}>
-            <View style={{ flex: 1 }}>
-              <Eyebrow>NEXT GOAL</Eyebrow>
-              <Text style={s.serif}>{goal.title}</Text>
-              <Text style={s.small}>ETA · {goal.eta}</Text>
-              <Text style={s.sub}>
-                {money(goal.saved)} of {money(goal.target)}
-              </Text>
-            </View>
-            <ProgressRing
-              progress={goal.saved === undefined ? undefined : goal.growth}
-            />
-          </View>
-        </Card>
-      </Pressable>
-      <Pressable
-        onPress={() =>
-          router.push({
-            pathname: '/impact',
-            params: { headline: data.today.headline },
-          })
-        }
-      >
-        <Card style={{ marginTop: 18 }}>
-          <View style={s.row}>
-            <View style={s.icon}>
-              <Newspaper color={colors.ink} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Eyebrow>IN THE NEWS</Eyebrow>
-              <Text style={s.strong}>{data.today.headline}</Text>
-              <Text style={s.small}>
-                See the estimated effect on your rates and goals.
-              </Text>
-            </View>
-            <ChevronRight color={colors.ink} />
-          </View>
-        </Card>
-      </Pressable>
-      <Card style={{ marginTop: 18 }}>
-        <Eyebrow>WHERE YOU MIGHT LOSE MONEY</Eyebrow>
-        <Text style={s.serif}>{data.losses[0].title}</Text>
-        <Text style={s.strong}>
-          {money(data.losses[0].minimum)}–{money(data.losses[0].maximum)}{' '}
-          estimated
-        </Text>
-        <Text style={s.small}>{data.losses[0].reason}</Text>
-      </Card>
-    </ScreenShell>
-  );
-}
+export { TodayScreen } from './TodayScreen';
 
 export function PictureScreen() {
   const { data, period, setPeriod } = useFinanceStore();
