@@ -108,5 +108,5 @@ def compare(profile, goals, request: ScenarioRequest, *, baseline: dict | None =
             {"source": "model", "description": "Monthly steps, nominal APR divided by 12, effective monthly APY, constant baseline cash flow, and no automatic headline pass-through."},
         ],
         "data_sources": [{"name": "nessie", "retrieved_at": profile.retrieved_at, "gaps": profile.data_gaps},
-                         {"name": "application_goals", "stored_in": "sqlite"}],
+                         {"name": "application_goals", "stored_in": "mongodb"}],
     }
