@@ -105,11 +105,14 @@ export default function TabsLayout() {
               </Text>
               {goal && (
                 <Text style={s.copy}>
-                  {Math.round(goal.growth * 100)}% grown ·{' '}
-                  {goal.saved.toLocaleString('en-US', {
+                  {goal.saved === undefined
+                    ? '—'
+                    : Math.round(goal.growth * 100)}
+                  % grown ·{' '}
+                  {goal.saved?.toLocaleString('en-US', {
                     style: 'currency',
                     currency: 'USD',
-                  })}{' '}
+                  }) ?? '—'}{' '}
                   saved
                 </Text>
               )}

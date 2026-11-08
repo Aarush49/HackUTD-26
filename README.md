@@ -158,7 +158,7 @@ Authentication is frontend-only. `lib/auth/service.ts` defines a replaceable `Au
 The backend is organized as small API, integration, and service layers:
 
 - API routes validate requests and return typed responses.
-- `NessieClient` performs authenticated, read-only sandbox requests.
+- FastAPI reads the sandbox through `NessieClient`. The separate `seed_canopy_demo.py` command writes demo assumptions to a dedicated Nessie metadata account.
 - Aggregation services normalize accounts, purchases, transfers, bills, loans, merchants, and income evidence.
 - Projection services calculate monthly baseline and scenario paths.
 - Risk services identify the first modeled liquidity shortfall.

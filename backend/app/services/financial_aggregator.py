@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime, timezone
 
+from app.integrations.canopy_demo import ACCOUNT_NICKNAME
 from app.integrations.nessie_client import NessieClient, NessieError
 from app.models.financial import Account, Bill, Customer, Debt, FinancialProfile, ZERO
 from app.services.expense_estimator import estimate_expenses
@@ -16,7 +17,7 @@ async def customer_summary(client: NessieClient, customer_id: str) -> Customer:
 
 
 async def customer_accounts(client: NessieClient, customer_id: str) -> list[Account]:
-    summary = await client.accounts(customer_id)
+    summary = [row for row in await client.accounts(customer_id) if row.nickname != ACCOUNT_NICKNAME]
     rows = await asyncio.gather(*(client.account(account_id) for account_id in dict.fromkeys(row.id for row in summary)))
     for account_id, row in zip(dict.fromkeys(row.id for row in summary), rows):
         if row.id != account_id or row.customer_id not in {None, customer_id}:

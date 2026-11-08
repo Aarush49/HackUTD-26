@@ -4,6 +4,7 @@ import os
 import pytest
 
 from app.config import Settings
+from app.integrations.canopy_demo import ACCOUNT_NICKNAME
 from app.integrations.nessie_client import NessieClient
 from app.services.financial_aggregator import aggregate
 
@@ -21,7 +22,9 @@ def test_live_nessie_customer():
             profile = await aggregate(client)
             assert profile.customer.id == settings.nessie_customer_id
             listed = await client.accounts()
-            assert {account.id for account in profile.accounts} == {account.id for account in listed}
+            assert {account.id for account in profile.accounts} == {
+                account.id for account in listed if account.nickname != ACCOUNT_NICKNAME
+            }
         finally:
             await client.close()
 

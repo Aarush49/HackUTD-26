@@ -120,6 +120,16 @@ class NessieClient:
     async def deposits(self, account_id: str) -> list[TransactionRecord]:
         return await self._read(f"accounts/{safe_id(account_id)}/deposits", TransactionRecord, many=True)
 
+    async def create_demo_record(self, path: str, payload: dict) -> None:
+        if not self.settings.nessie_api_key:
+            raise NessieError("nessie_not_configured", "Set NESSIE_API_KEY to use Nessie.", 503)
+        try:
+            response = await self._client.post(path, params={"key": self.settings.nessie_api_key}, json=payload)
+        except httpx.RequestError:
+            raise NessieError("nessie_network_error", "Could not confirm the Nessie write. Check existing records before retrying.", 503) from None
+        if not response.is_success:
+            raise NessieError("nessie_write_failed", f"Nessie rejected the demo record (HTTP {response.status_code}).", 502, response.status_code)
+
     async def withdrawals(self, account_id: str) -> list[TransactionRecord]:
         return await self._read(f"accounts/{safe_id(account_id)}/withdrawals", TransactionRecord, many=True)
 

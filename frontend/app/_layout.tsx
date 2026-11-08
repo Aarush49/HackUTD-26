@@ -16,6 +16,7 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import { useAuthStore } from '@/lib/auth/store';
+import { useFinanceStore } from '@/lib/store';
 SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const [fonts] = useFonts({
@@ -33,6 +34,16 @@ export default function RootLayout() {
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+  useEffect(() => {
+    const { load, clear } = useFinanceStore.getState();
+    if (status !== 'signedIn') {
+      clear();
+      return;
+    }
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
+  }, [status]);
   useEffect(() => {
     if (!fonts || status === 'loading') return;
     const auth = segments[0] === '(auth)',

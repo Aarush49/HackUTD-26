@@ -2,6 +2,29 @@ from decimal import Decimal
 
 import httpx
 
+from app.integrations.canopy_demo import ACCOUNT_NICKNAME, RECORD_PREFIX
+from conftest import days_ago, movement
+
+
+def test_canopy_reads_demo_inputs_separately_from_balances_and_history(api, sandbox):
+    sandbox.responses["/customers/customer/accounts"].append({
+        "_id": "demo", "type": "Savings", "nickname": ACCOUNT_NICKNAME,
+        "customer_id": "customer", "balance": 0,
+    })
+    sandbox.responses["/accounts/demo/deposits"] = [
+        movement("settings", 1, 0, RECORD_PREFIX + 'cashFlow:{"priorMonthlyGrowth":225}'),
+        movement("ordinary", 1, 100, "ACME Payroll"),
+    ]
+    result = api.get("/api/canopy")
+    assert result.status_code == 200, result.text
+    data = result.json()
+    assert data["inputs"] == {"cashFlow": {"priorMonthlyGrowth": 225}}
+    assert {account["id"] for account in data["accounts"]} == {"checking", "savings"}
+    assert Decimal(data["liquidReserves"]) == 3500
+    assert Decimal(data["dailyChanges"][days_ago(2)]) == 465
+    assert days_ago(1) not in data["dailyChanges"]
+    assert days_ago(12) not in data["dailyChanges"]
+
 
 def test_balances_are_live_and_reconcile(api, sandbox):
     sandbox.responses["/accounts/checking"] = {**sandbox.responses["/accounts/checking"], "balance": 1111}

@@ -7,7 +7,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { Goal } from '@/lib/mock';
+import type { Goal } from '@/lib/finance/types';
 import { useFinanceStore } from '@/lib/store';
 import { colors } from '@/lib/theme';
 
@@ -117,8 +117,8 @@ export function Sapling({
 export function GardenLayer() {
   const { data, inspectGoal } = useFinanceStore();
   const insets = useSafeAreaInsets();
-  const trend = data.picture.periods.Month.change / 10;
-  const runway = Number.parseFloat(data.picture.health.runway) / 10;
+  const trend = (data.picture.periods.Month.change ?? 0) / 10;
+  const runway = (Number.parseFloat(data.picture.health.runway) || 0) / 10;
   const overallGrowth = Math.max(0.08, Math.min(1, (trend + runway) / 2));
   return (
     <View
