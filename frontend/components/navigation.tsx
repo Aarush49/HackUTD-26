@@ -1,5 +1,4 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
 import { CalendarDays, ChartNoAxesCombined, CircleGauge, Flower2, Sparkles } from "lucide-react-native";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";

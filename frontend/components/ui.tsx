@@ -7,7 +7,7 @@ export function Badge({children,tone="blue"}:{children:ReactNode;tone?:"blue"|"p
 export function Button3D({children,onClick,disabled=false,loading=false,tone="pink",ariaLabel}:{children:ReactNode;onClick?:()=>void;className?:string;ariaLabel?:string;disabled?:boolean;loading?:boolean;tone?:"pink"|"sky"|"white"}){const bg=tone==="pink"?colors.pink:tone==="sky"?colors.sky:"#FFFFFF",edge=tone==="pink"?"#BD155F":tone==="sky"?"#1488B8":"#C9DCE5";return <Pressable accessibilityRole="button" accessibilityLabel={ariaLabel} disabled={disabled||loading} onPress={onClick} style={({pressed})=>[s.button,{backgroundColor:bg,borderBottomColor:edge,opacity:disabled?.5:1,transform:[{translateY:pressed?3:0}]}]}>{loading?<ActivityIndicator color={tone==="white"?colors.ink:"white"}/>:typeof children==="string"?<Text style={[s.buttonText,{color:tone==="white"?colors.ink:"white"}]}>{children}</Text>:children}</Pressable>}
 export function SegmentedPill<T extends string>({options,value,onChange}:{options:readonly T[];value:T;onChange:(v:T)=>void}){return <View style={s.segment}>{options.map(o=><Pressable key={o} onPress={()=>onChange(o)} style={[s.segmentItem,value===o&&s.segmentActive]}><Text style={s.segmentText}>{o}</Text></Pressable>)}</View>}
 export function StatTile({label,value,tone="blue"}:{label:string;value:string;tone?:string}){return <View style={[s.stat,{backgroundColor:tone==="green"?"#E2F7EA":tone==="amber"?"#FFF2D8":colors.pale}]}><Eyebrow>{label}</Eyebrow><Text style={s.statValue}>{value}</Text></View>}
-export function TrustTag(){return <View style={s.trust}><View style={s.dot}/><Text style={s.trustText}>Nessie sandbox</Text></View>};export function Heading({children,accent}:{children:ReactNode;accent:string}){return <View><Text style={s.heading}>{children}</Text><Text style={s.accent}>{accent}</Text></View>}
+export function TrustTag(){return <View style={s.trust}><View style={s.dot}/><Text style={s.trustText}>Synthetic demo data</Text></View>};export function Heading({children,accent}:{children:ReactNode;accent:string}){return <View><Text style={s.heading}>{children}</Text><Text style={s.accent}>{accent}</Text></View>}
 type ChartLine = { key: string; color: string; dashed?: boolean };
 
 export function LineChartWithNodes({ data, lines, height=210 }: {
@@ -31,10 +31,11 @@ export function LineChartWithNodes({ data, lines, height=210 }: {
         else if (segment.length) { segments.push(segment); segment = []; }
       });
       if (segment.length) segments.push(segment);
-      return segments.map(points => points.length === 1 ?
-        <Circle key={`${line.key}-${points[0].index}`} cx={x(points[0].index)} cy={y(points[0].value)} r={4} fill={line.color}/> :
-        <Polyline key={`${line.key}-${points[0].index}`} points={points.map(point => `${x(point.index)},${y(point.value)}`).join(" ")}
-          fill="none" stroke={line.color} strokeWidth={3} strokeDasharray={line.dashed ? "3 7" : undefined}/>);
+      return segments.map(points => <ReactNodeFragment key={`${line.key}-${points[0].index}`}>
+        {points.length > 1 && <Polyline points={points.map(point => `${x(point.index)},${y(point.value)}`).join(" ")}
+          fill="none" stroke={line.color} strokeWidth={3} strokeDasharray={line.dashed ? "3 7" : undefined}/>}
+        {points.map((point, pointIndex) => <Circle key={point.index} cx={x(point.index)} cy={y(point.value)} r={4.5}
+          fill={line.dashed && pointIndex === points.length - 1 ? colors.pink : "white"} stroke={line.color} strokeWidth={2.5}/>)}</ReactNodeFragment>);
     })}
     {data.map((row, index) => (index === 0 || index === data.length - 1 || index % Math.ceil(data.length / 6) === 0) &&
       <SvgText key={index} x={x(index)} y={height-2} fill={colors.muted} fontSize={9} textAnchor="middle">{String(row.label)}</SvgText>)}

@@ -1,3 +1,25 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  background: #dff3fc;
+}
+
+#root {
+  position: relative;
+  width: 100%;
+  max-width: 390px;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 0 48px rgba(11, 58, 91, 0.16);
+}
