@@ -50,15 +50,17 @@ export type Risk = Runway & {
   goal_changes: GoalChange[];
   missing_requirements: string[];
 };
-type Projection = {
+export type Projection = {
   monthly: Month[];
   interest_earned: Money;
   interest_paid: Money;
   missing_requirements: string[];
+  financial_runway: Runway;
+  goals: (GoalProjection & { goal_id: string })[];
 };
 export type HeadlineAnalysis = {
   headline_exposure_status: "modeled" | "inputs_required" | "no_identified_exposure";
-  event: { explanation: string };
+  event: { type: string; explanation: string };
   affected_accounts: {
     account_id: string;
     exposure: string;
@@ -76,6 +78,15 @@ export type HeadlineAnalysis = {
 export type Simulation = {
   baseline_projection: Projection;
   scenario_projection: Projection;
+};
+export type StrategyComparison = {
+  baseline_projection: Projection;
+  strategies: {
+    name: string;
+    scenario_projection: Projection;
+    headline_exposure_status: HeadlineAnalysis["headline_exposure_status"] | null;
+    exposure_explanations: string[];
+  }[];
 };
 export type Product = {
   kind: string;
@@ -129,6 +140,12 @@ const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD",
 export function money(value: Money | undefined): string {
   const amount = number(value);
   return amount === null ? "Unavailable" : usd.format(amount);
+}
+
+export function runwayLabel(risk: Runway | null): string {
+  if (risk?.first_shortfall_month === 0) return "Now";
+  if (risk?.first_shortfall_month != null) return `Month ${risk.first_shortfall_month}`;
+  return risk?.status === "no_shortfall_within_horizon" ? "None projected" : "Unavailable";
 }
 
 export function displayDate(value: string | null | undefined, options?: Intl.DateTimeFormatOptions): string {

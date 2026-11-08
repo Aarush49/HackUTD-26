@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { api, displayDate, number, resolveCustomerId } from "@/lib/api";
 import type { Dashboard, Product, Risk } from "@/lib/api";
 
-export const headlineExamples = ["Fed holds rates", "Inflation cools", "Oil prices climb"];
+export const headlineExamples = ["Gas prices rise 10%", "Fed holds rates", "Inflation cools"];
 export const shockPresets = [
   { id: "repair", title: "Car repair", amount: 2400, detail: "One surprise this month", input: { unexpected_expense: 2400 } },
   { id: "income", title: "Lose income", amount: null, detail: "Two months without pay", input: { income_reduction: 1, income_reduction_months: 2 } },

@@ -1,16 +1,16 @@
 import { Children, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { ArrowRight, ChevronRight, CircleDollarSign, Landmark, Newspaper, ShieldCheck, Sparkles, TrendingUp, WalletCards, Wrench } from "lucide-react-native";
-import { api, displayDate, money, number } from "@/lib/api";
+import { api, displayDate, money, number, runwayLabel } from "@/lib/api";
 import type { Account, HeadlineAnalysis, Risk, Simulation } from "@/lib/api";
-import { mockData } from "@/lib/mock";
 import { goalViews, headlineExamples, shockPresets, useFinanceStore } from "@/lib/store";
 import { colors } from "@/lib/theme";
 import { Badge, BalanceAreaChart, BigNumber, Button3D, Card, ChunkySlider, Eyebrow, Heading, LineChartWithNodes, SegmentedPill, StatTile, TrustTag } from "./ui";
 import { GardenLayer, Sapling } from "./garden";
 import { SkyBackground } from "./Background";
+import { ScenarioResponse } from "./ScenarioResponse";
 
 function ScreenShell({ children }: { children?: ReactNode }) {
   const { status, error, load } = useFinanceStore();
@@ -29,12 +29,6 @@ function ScreenIntro({ eyebrow, title, accent, sub }: { eyebrow: string; title: 
   return <View style={{marginBottom:20}}><View style={s.between}><Eyebrow>{eyebrow}</Eyebrow><TrustTag/></View>
     <Heading accent={accent}>{title}</Heading>{sub && <Text style={s.sub}>{sub}</Text>}
   </View>;
-}
-
-function runwayLabel(risk: Risk | null) {
-  if (risk?.first_shortfall_month === 0) return "Now";
-  if (risk?.first_shortfall_month != null) return `Month ${risk.first_shortfall_month}`;
-  return risk?.status === "no_shortfall_within_horizon" ? "None projected" : "Unavailable";
 }
 
 function runwayDetail(risk: Risk | null, error?: string | null) {
@@ -76,7 +70,7 @@ export function TodayScreen() {
         </View>;
       })}
     </Card>
-    <Pressable onPress={() => router.push("/impact")}><Card style={{marginTop:18}}><View style={s.row}>
+    <Pressable onPress={() => router.push({ pathname: "/impact", params: { headline: headlineExamples[0] } })}><Card style={{marginTop:18}}><View style={s.row}>
       <View style={s.icon}><Newspaper color={colors.ink}/></View><View style={{flex:1}}><Eyebrow>EXAMPLE HEADLINE</Eyebrow>
         <Text style={s.strong}>{headlineExamples[0]}</Text><Text style={s.small}>Explore how a headline could affect you.</Text>
       </View><ChevronRight color={colors.ink}/>
@@ -99,24 +93,21 @@ export function PictureScreen() {
   }
   const groups = [...new Set(accounts.map(account => account.kind))];
   const current = number(dashboard.known_account_net_worth);
-  const periodData = mockData.picture.periods[period];
-  const periodPosition = current === null ? periodData.netPosition : Math.round(current * (1 + periodData.change / 100));
-  const chartOffset = periodPosition - periodData.netPosition;
-  const chart = periodData.chart.map(row => ({
-    ...row,
-    value: typeof row.value === "number" ? row.value + chartOffset : undefined,
-    projected: typeof row.projected === "number" ? row.projected + chartOffset : undefined,
-  }));
+  const months = period === "Year" ? 12 : period === "Month" ? 1 : 0;
+  const monthly = baseline?.monthly.slice(1, months + 1) ?? [];
+  const chart = [{ label: "Now", value: current, projected: number(baseline?.monthly[0]?.known_account_net_worth) },
+    ...monthly.map(row => ({ label: displayDate(row.date, {month:"short"}), value: null, projected: number(row.known_account_net_worth) }))];
   const interest = baseline?.monthly.slice(1, 13).map(row => number(row.interest_paid));
   const annualInterest = interest?.length === 12 && interest.every(value => value !== null) &&
     !baseline?.missing_requirements.length ? interest.reduce((sum, value) => sum + value, 0) : null;
   return <ScreenShell>
     <ScreenIntro eyebrow="THE WHOLE PICTURE" title="Your money," accent="together." sub="Balances and projections for known Nessie accounts."/>
     <SegmentedPill options={["Week","Month","Year"] as const} value={period} onChange={setPeriod}/>
-    <Card><Eyebrow>KNOWN NET POSITION</Eyebrow><BigNumber>{money(periodPosition)}</BigNumber>
+    <Card><Eyebrow>KNOWN NET POSITION</Eyebrow><BigNumber>{money(current)}</BigNumber>
       {chart.some(row => row.value !== null || row.projected !== null) &&
         <LineChartWithNodes key={period} data={chart} lines={[{key:"value",color:colors.ink},{key:"projected",color:colors.pink,dashed:true}]}/>}
-      <Text style={s.small}>{`${periodData.change.toFixed(1)}% estimated change · ${period.toLowerCase()} view`}</Text>
+      <Text style={s.small}>{period === "Week" ? "Projections are monthly." :
+        baselineError ?? baseline?.missing_requirements[0] ?? (baseline ? "Current balance and available monthly projection." : "Loading projection…")}</Text>
     </Card>
     <View style={s.stats}><StatTile label="RUNWAY" value={runwayLabel(baseline)}/>
       <StatTile label="CUSHION" value={money(dashboard.liquid_reserves)} tone="green"/></View>
@@ -162,9 +153,8 @@ function StressTest({ customerId }: { customerId: string }) {
       <Text style={s.serif}>{preset.amount !== null ? money(preset.amount) : preset.input ? "2 months" : "Unavailable"}</Text>
       <Text style={s.mini}>{preset.detail}</Text>
     </Pressable>)}</View>
-    {active && <Card style={{marginTop:18}}><Eyebrow>FUNDING WATERFALL</Eyebrow>
-      <Text style={s.small}>Funding sources and costs are unavailable for this forecast.</Text>
-    </Card>}
+    {active?.input && <ScenarioResponse key={active.id} customerId={customerId}
+      trigger={{ label: active.title, shock: active.input }}/>}
   </>;
 }
 
@@ -272,7 +262,8 @@ function impactRows(result: HeadlineAnalysis, accounts: Account[]) {
 
 export function ImpactScreen() {
   const dashboard = useFinanceStore(state => state.dashboard);
-  const [input, setInput] = useState("");
+  const { headline } = useLocalSearchParams<{ headline?: string }>();
+  const [input, setInput] = useState(headline ?? "");
   const [query, setQuery] = useState<{ text: string } | null>(null);
   const [response, setResponse] = useState<{ query: typeof query; data?: HeadlineAnalysis; error?: string } | null>(null);
   const customerId = dashboard?.customer.id;
@@ -322,7 +313,11 @@ export function ImpactScreen() {
     </Card>
     {explanation && <Card style={{marginTop:16}}><View style={s.row}><TrendingUp color={colors.pink}/><View style={{flex:1}}>
       <Text style={s.serif}>What the model found</Text><Text style={s.small}>{explanation}</Text>
-    </View></View></Card>}<Advice/>
+    </View></View></Card>}
+    {result && query && customerId && (result.headline_exposure_status === "modeled" || result.event.type === "gas_prices") &&
+      <ScenarioResponse key={query.text} customerId={customerId}
+        trigger={{ label: query.text, headline: query.text, acceptsFuelSensitivity: result.event.type === "gas_prices" }}/>}
+    <Advice/>
   </ScreenShell>;
 }
 
