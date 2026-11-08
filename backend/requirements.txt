@@ -7,3 +7,5 @@ pymongo>=4,<5
 uvicorn>=0.32,<1
 pytest>=8,<10
 pymongo
+
+SQLAlchemy>=2,<3

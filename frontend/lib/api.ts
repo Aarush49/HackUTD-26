@@ -3,13 +3,14 @@ type Money = string | number | null;
 type Customer = { id: string; first_name: string | null };
 export type Account = { id: string; type: string; nickname: string | null; balance: Money };
 type Debt = { id: string; kind: string; balance: Money };
-type Goal = {
+export type Goal = {
   id: string;
   name: string;
   target_amount: Money;
   target_date: string | null;
   funding_account_id: string | null;
   initial_funded_amount: Money;
+  monthly_contribution: Money;
 };
 type Bill = {
   id: string;
@@ -86,11 +87,11 @@ export type Product = {
 
 const apiOrigin = (process.env.EXPO_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
-export async function api<T>(path: string, body?: object, signal?: AbortSignal): Promise<T> {
+export async function api<T>(path: string, body?: object, signal?: AbortSignal, method = body ? "POST" : "GET"): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${apiOrigin}/api${path}`, {
-      method: body ? "POST" : "GET",
+      method,
       headers: body ? { "Content-Type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
       signal,
@@ -133,7 +134,9 @@ export function money(value: Money | undefined): string {
 
 export function displayDate(value: string | null | undefined, options?: Intl.DateTimeFormatOptions): string {
   if (!value) return "Unavailable";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "Unavailable";
   return new Intl.DateTimeFormat("en-US", {
     ...(options ?? { dateStyle: "medium" }), timeZone: "UTC",
-  }).format(new Date(value));
+  }).format(date);
 }

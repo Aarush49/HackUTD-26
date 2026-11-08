@@ -12,9 +12,13 @@ from app.integrations.nessie_client import NessieClient, NessieError
 from app.models.database import Base, database
 from app.services.goal_service import GoalConflict
 from app.services.projection_engine import ScenarioInputError
+from app.api import personal_news
+from app.api.personal_news import PersonalNewsService
+from app.features.personal_news import NewsError
 
 
-def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTransport | None = None,
+               news_transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
 
     @asynccontextmanager
@@ -26,10 +30,12 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
         try:
             Base.metadata.create_all(engine)
             app.state.nessie = NessieClient(settings, transport)
+            app.state.personal_news = PersonalNewsService(settings, news_transport)
             try:
                 yield
             finally:
                 await app.state.nessie.close()
+                await app.state.personal_news.close()
         finally:
             engine.dispose()
 
@@ -37,7 +43,7 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
     app.add_middleware(
         CORSMiddleware,
         allow_origin_regex=r"https?://(?:localhost|127\.0\.0\.1)(?::\d+)?",
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "PATCH"],
         allow_headers=["Content-Type"],
     )
 
@@ -56,11 +62,15 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
     async def goal_conflict(_request: Request, error: GoalConflict):
         return JSONResponse(status_code=409, content={"detail": {"code": "goal_conflict", "message": str(error)}})
 
+    @app.exception_handler(NewsError)
+    async def news_error(_request: Request, error: NewsError):
+        return JSONResponse(status_code=error.status_code, content={"detail": error.detail})
+
     @app.get("/health", tags=["System"])
     def health():
         return {"status": "ok"}
 
-    for module in (nessie, customers, accounts, transactions, dashboard, goals, headlines, risk, simulation, products, scenarios, transfers):
+    for module in (nessie, customers, accounts, transactions, dashboard, goals, headlines, risk, simulation, products, scenarios, transfers, personal_news):
         app.include_router(module.router, prefix="/api")
     return app
 

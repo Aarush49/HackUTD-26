@@ -18,6 +18,8 @@ export type Goal = {
   growth: number | null;
 };
 
+let activeRequest: AbortController | null = null;
+
 type State = {
   dashboard: Dashboard | null;
   baseline: Risk | null;
@@ -29,10 +31,12 @@ type State = {
   sheet: null | "whatif" | "goal" | "sapling";
   selectedGoal: string | null;
   shock: string | null;
-  predictMode: "break" | "simulate";
+  predictMode: "news" | "break" | "simulate";
   period: "Week" | "Month" | "Year";
   sim: { monthly: number; years: number; rate: number };
   load: (retry?: boolean) => Promise<void>;
+  refresh: () => Promise<void>;
+  reset: () => void;
   openSheet: (sheet: State["sheet"]) => void;
   closeSheet: () => void;
   selectGoal: (id: string) => void;
@@ -65,29 +69,39 @@ export function goalViews(dashboard: Dashboard | null, baseline: Risk | null): G
 export const useFinanceStore = create<State>((set, get) => ({
   dashboard: null, baseline: null, baselineError: null, products: null, productsError: null,
   status: "idle", error: null, sheet: null, selectedGoal: null,
-  shock: null, predictMode: "break", period: "Month",
+  shock: null, predictMode: "news", period: "Month",
   sim: { monthly: 650, years: 8, rate: 6.5 },
   load: async (retry = false) => {
     const { status } = get();
     if (status !== "idle" && !(retry && status === "error")) return;
+    activeRequest?.abort();
+    const controller = new AbortController();
+    activeRequest = controller;
+    const { signal } = controller;
     set({ status: "loading", error: null });
     try {
       const id = await resolveCustomerId();
-      const dashboard = await api<Dashboard>(`/dashboard/${encodeURIComponent(id)}`);
+      if (signal.aborted) return;
+      const dashboard = await api<Dashboard>(`/dashboard/${encodeURIComponent(id)}`, undefined, signal);
+      if (signal.aborted) return;
       set({ dashboard, status: "ready" });
-      void api<Risk>("/risk/predict", { customer_id: dashboard.customer.id }).then(
-        baseline => set({ baseline }),
-        error => set({ baselineError: String(error.message) }),
+      void api<Risk>("/risk/predict", { customer_id: dashboard.customer.id }, signal).then(
+        baseline => { if (!signal.aborted) set({ baseline }); },
+        error => { if (!signal.aborted) set({ baselineError: String(error.message) }); },
       );
-      void api<Product[]>("/products").then(
-        products => set({ products }),
-        error => set({ productsError: String(error.message) }),
+      void api<Product[]>("/products", undefined, signal).then(
+        products => { if (!signal.aborted) set({ products }); },
+        error => { if (!signal.aborted) set({ productsError: String(error.message) }); },
       );
     } catch (error) {
+      if (signal.aborted) return;
       set({ status: "error", error: error instanceof Error ? error.message : "Could not load the financial profile." });
     }
   },
   openSheet: sheet => set({ sheet }),
+  refresh: async () => { set({ status: "idle", baseline: null }); await get().load(); },
+  reset: () => { activeRequest?.abort(); activeRequest = null; set({ dashboard: null, baseline: null, baselineError: null, products: null, productsError: null,
+    status: "idle", error: null, sheet: null, selectedGoal: null, shock: null }); },
   closeSheet: () => set({ sheet: null }),
   selectGoal: id => set({ selectedGoal: id, sheet: "goal" }),
   inspectGoal: id => set({ selectedGoal: id, sheet: "sapling" }),

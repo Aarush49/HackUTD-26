@@ -9,6 +9,7 @@ import { mockData } from "@/lib/mock";
 import { goalViews, headlineExamples, shockPresets, useFinanceStore } from "@/lib/store";
 import { colors } from "@/lib/theme";
 import { Badge, BalanceAreaChart, BigNumber, Button3D, Card, ChunkySlider, Eyebrow, Heading, LineChartWithNodes, SegmentedPill, StatTile, TrustTag } from "./ui";
+import { PersonalNews } from "./PersonalNews";
 import { GardenLayer, Sapling } from "./garden";
 import { SkyBackground } from "./Background";
 
@@ -219,8 +220,8 @@ export function PredictScreen() {
   const savings = dashboard.accounts.find(account => account.type.toLowerCase() === "savings" && number(account.balance) !== null);
   return <ScreenShell>
     <ScreenIntro eyebrow="LOOK AHEAD" title="Make uncertainty" accent="useful." sub="Stress test today, or sketch a longer tomorrow."/>
-    <SegmentedPill options={["break","simulate"] as const} value={predictMode} onChange={setPredictMode}/>
-    {predictMode === "break" ? <StressTest customerId={dashboard.customer.id}/> :
+    <SegmentedPill options={["news","break","simulate"] as const} value={predictMode} onChange={setPredictMode}/>
+    {predictMode === "news" ? <PersonalNews key={dashboard.customer.id} customerId={dashboard.customer.id}/> : predictMode === "break" ? <StressTest customerId={dashboard.customer.id}/> :
       <SavingsSimulation customerId={dashboard.customer.id} savings={savings}/>}
   </ScreenShell>;
 }

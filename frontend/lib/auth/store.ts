@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { authService, AuthUser } from "./service";
+import { useFinanceStore } from "../store";
 type AuthStatus = "loading" | "signedOut" | "signedIn";
 type AuthState = { user: AuthUser | null; status: AuthStatus; needsOnboarding: boolean; hydrate: () => Promise<void>; login: (v: { email: string; password: string }) => Promise<void>; signup: (v: { name: string; email: string; password: string }) => Promise<void>; completeOnboarding: () => void; logout: () => Promise<void> };
 export const useAuthStore = create<AuthState>(set => ({
@@ -8,5 +9,5 @@ export const useAuthStore = create<AuthState>(set => ({
   login: async values => { const session = await authService.login(values); set({ user: session.user, status: "signedIn", needsOnboarding: false }); },
   signup: async values => { const session = await authService.signup(values); set({ user: session.user, status: "signedIn", needsOnboarding: true }); },
   completeOnboarding: () => set({ needsOnboarding: false }),
-  logout: async () => { await authService.logout(); set({ user: null, status: "signedOut", needsOnboarding: false }); },
+  logout: async () => { await authService.logout(); useFinanceStore.getState().reset(); set({ user: null, status: "signedOut", needsOnboarding: false }); },
 }));
