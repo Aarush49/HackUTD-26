@@ -19,9 +19,12 @@ from app.integrations.nessie_client import NessieClient, NessieError
 from app.models.database import Base, database
 from app.services.goal_service import GoalConflict
 from app.services.projection_engine import ScenarioInputError
+from app.api import personal_news
+from app.features.personal_news import NewsError, PersonalNewsService
 
 
-def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTransport | None = None,
+               news_transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
 
     @asynccontextmanager
@@ -34,10 +37,12 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
         app.state.db_client = client
         try:
             app.state.nessie = NessieClient(settings, transport)
+            app.state.personal_news = PersonalNewsService(settings, news_transport)
             try:
                 yield
             finally:
                 await app.state.nessie.close()
+                await app.state.personal_news.close()
         finally:
             if hasattr(client, "close"):
                 client.close()
@@ -69,7 +74,11 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
     def health():
         return {"status": "ok"}
 
-    for module in (nessie, customers, accounts, transactions, dashboard, goals, headlines, risk, simulation, products, scenarios, transfers):
+    @app.exception_handler(NewsError)
+    async def news_error(_request: Request, error: NewsError):
+        return JSONResponse(status_code=error.status_code, content={"detail": error.detail})
+
+    for module in (nessie, customers, accounts, transactions, dashboard, goals, headlines, risk, simulation, products, scenarios, transfers, personal_news):
         app.include_router(module.router, prefix="/api")
     return app
 
@@ -84,4 +93,3 @@ if __name__ == "__main__":
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
     uvicorn.run("app.main:app", host=host, port=port, reload=True)
-

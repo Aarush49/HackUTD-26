@@ -11,7 +11,7 @@ type State = {
   tab: Tab;
   sheet: null | 'whatif' | 'goal' | 'sapling';
   selectedGoal: string | null;
-  predictMode: 'predict' | 'simulate';
+  predictMode: 'news' | 'predict' | 'simulate';
   period: 'Week' | 'Month' | 'Year';
   sim?: Simulation;
   load: (signal: AbortSignal) => Promise<void>;
@@ -32,7 +32,7 @@ export const useFinanceStore = create<State>((set) => ({
   tab: 'today',
   sheet: null,
   selectedGoal: null,
-  predictMode: 'predict',
+  predictMode: 'news',
   period: 'Month',
   load: async (signal) => {
     set({ loadFailed: false });

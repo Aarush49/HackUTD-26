@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { authService, AuthUser } from './service';
+import { useFinanceStore } from '../store';
 type AuthStatus = 'loading' | 'signedOut' | 'signedIn';
 type AuthState = {
   user: AuthUser | null;
@@ -46,6 +47,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   completeOnboarding: () => set({ needsOnboarding: false }),
   logout: async () => {
     await authService.logout();
+    useFinanceStore.getState().clear();
     set({ user: null, status: 'signedOut', needsOnboarding: false });
   },
 }));

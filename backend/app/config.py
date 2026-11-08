@@ -10,9 +10,12 @@ class Settings:
     nessie_api_key: str = field(default="", repr=False)
     nessie_base_url: str = "https://prod-api.nessieisreal.com"
     nessie_customer_id: str = ""
-    mongo_uri: str = "mongodb://localhost:27017"
+    mongo_uri: str = field(default="mongodb://localhost:27017", repr=False)
     mongo_db_name: str = "financial_navigator"
-    database_url: str = ""
+    database_url: str = field(default="", repr=False)
+    news_api_key: str = field(default="", repr=False)
+    gemini_api_key: str = field(default="", repr=False)
+    gemini_model: str = "gemini-3.1-flash-lite"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -30,4 +33,7 @@ class Settings:
             mongo_uri=uri,
             mongo_db_name=os.getenv("MONGO_DB_NAME", "").strip() or defaults.mongo_db_name,
             database_url=uri,
+            news_api_key=os.getenv("NEWS_API_KEY", "").strip(),
+            gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
+            gemini_model=os.getenv("GEMINI_MODEL", "").strip() or defaults.gemini_model,
         )

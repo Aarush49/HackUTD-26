@@ -1,5 +1,15 @@
 # Financial Health Navigator
 
+## Personalized news setup
+
+Set `NEWS_API_KEY`, `GEMINI_API_KEY`, and `GEMINI_MODEL=gemini-3.1-flash-lite` in the ignored backend `.env`. Never expose these as `EXPO_PUBLIC_` variables. News preferences are saved per sandbox customer in MongoDB's `news_preferences` collection. Existing demo authentication remains a trusted-local sandbox flow, not production authorization.
+
+The onboarding questionnaire asks about goals, topics, places, and timing. It is also available from Predict → News → Set up or edit my news interests. Optional purchase suggestions inspect posted purchases over 60 days, rank broad allowed categories by frequency and recency, and require explicit user selection before use. Raw purchases, merchants, account IDs, and balances are never sent to News API or Gemini.
+
+`GET /api/news/preferences/{customer_id}`, `POST /api/news/preferences`, `GET /api/news/suggestions/{customer_id}`, and `POST /api/news/feed` support the flow. News API's Everything endpoint receives a bounded query from saved preferences. Gemini uses ordinary text generation, without Search grounding, to summarize only the provided snippets. Source links remain provider supplied; the model cannot invent them. AI failure shows labeled publisher snippets. Reports never alter a goal or automatically infer budget changes.
+
+Feeds are cached for one hour, with a one-minute cooldown for changed queries. Cache and cooldowns are process-local. News API Developer allows 100 requests/day with 24-hour delay and is limited to development/testing, not staging or production. No full-article fetching is performed. See https://newsapi.org/pricing and https://newsapi.org/docs/endpoints/everything. Broader topics often work better than exact goal names. No background notifications are scheduled.
+
 Financial Health Navigator is a FastAPI backend for exploring how an economic headline or financial decision could affect a Nessie sandbox customer. Every bank balance, transaction, bill and loan record used by the API comes from a read-only Nessie request. SQLite stores user-created goals and saved scenario parameters.
 
 ## Install and run

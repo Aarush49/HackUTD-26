@@ -40,6 +40,7 @@ import {
 import { GardenLayer, Sapling } from './garden';
 import { SkyBackground } from './Background';
 import { BrandHeader } from './BrandHeader';
+import { PersonalNews } from './PersonalNews';
 
 export function ScreenShell({ children }: { children: ReactNode }) {
   const insets = useSafeAreaInsets();
@@ -341,11 +342,11 @@ export function PredictScreen() {
         sub="Stress test today, or sketch a longer tomorrow."
       />
       <SegmentedPill
-        options={['predict', 'simulate'] as const}
+        options={['news', 'predict', 'simulate'] as const}
         value={predictMode}
         onChange={setPredictMode}
       />
-      {predictMode === 'predict' ? <PredictorPanel /> : <SimulationPanel />}
+      {predictMode === 'news' ? <PersonalNews /> : predictMode === 'predict' ? <PredictorPanel /> : <SimulationPanel />}
     </ScreenShell>
   );
 }

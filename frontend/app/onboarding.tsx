@@ -7,10 +7,12 @@ import { Button3D, Card, Eyebrow, Heading } from '@/components/ui';
 import { Sapling } from '@/components/garden';
 import { useAuthStore } from '@/lib/auth/store';
 import { colors } from '@/lib/theme';
+import { NewsSetup } from '@/components/PersonalNews';
 
 const choices = ['Trip', 'Home', 'Car', 'Emergency fund'];
 
 export default function Onboarding() {
+  const [newsStep, setNewsStep] = React.useState(false);
   const [selected, setSelected] = React.useState(0);
   const complete = useAuthStore((state) => state.completeOnboarding);
   const insets = useSafeAreaInsets();
@@ -34,7 +36,7 @@ export default function Onboarding() {
             onPress={() => {}}
           />
         </View>
-        <Card>
+        {newsStep ? <NewsSetup onSaved={() => { complete(); router.replace('/(tabs)'); }}/>: <Card>
           <Text style={s.copy}>Preview a goal theme for your garden.</Text>
           <View style={s.choices}>
             {choices.map((choice, index) => (
@@ -56,13 +58,13 @@ export default function Onboarding() {
           </View>
           <Button3D
             onClick={() => {
-              complete();
-              router.replace('/(tabs)');
+              setNewsStep(true);
             }}
           >
-            Continue to the garden
+            Continue to news setup
           </Button3D>
-        </Card>
+        </Card>}
+        {newsStep && <Button3D tone="white" onClick={() => { complete(); router.replace('/(tabs)'); }}>Skip news setup for now</Button3D>}
       </ScrollView>
     </SkyBackground>
   );
