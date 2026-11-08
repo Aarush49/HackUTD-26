@@ -35,7 +35,6 @@ import {
   LineChartWithNodes,
   SegmentedPill,
   StatTile,
-  TrustTag,
 } from './ui';
 import { GardenLayer, Sapling } from './garden';
 import { SkyBackground } from './Background';
@@ -100,7 +99,6 @@ function ScreenIntro({
     <View style={{ marginBottom: 20 }}>
       <View style={s.between}>
         <Eyebrow>{eyebrow}</Eyebrow>
-        <TrustTag />
       </View>
       <Heading accent={accent}>{title}</Heading>
       {sub && <Text style={s.sub}>{sub}</Text>}

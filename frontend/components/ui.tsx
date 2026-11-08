@@ -177,14 +177,6 @@ export function StatTile({
     </View>
   );
 }
-export function TrustTag() {
-  return (
-    <View style={s.trust}>
-      <View style={s.dot} />
-      <Text style={s.trustText}>Synthetic demo data</Text>
-    </View>
-  );
-}
 export function Heading({
   children,
   accent,
