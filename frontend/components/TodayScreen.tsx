@@ -8,7 +8,7 @@ import { BigNumber, Card, Eyebrow } from './ui';
 import { ScreenShell, ScreenIntro, ProgressRing } from './screens';
 
 export function TodayScreen() {
-  const { data, selectGoal, loadFailed } = useFinanceStore();
+  const { data, selectGoal } = useFinanceStore();
   const goal = data.goals[0];
   return (
     <ScreenShell>
@@ -18,11 +18,7 @@ export function TodayScreen() {
       />
       <Card>
         <Eyebrow>NET POSITION · ESTIMATED</Eyebrow>
-        <BigNumber>
-          {loadFailed
-            ? 'Unavailable'
-            : money(data.picture.periods.Month.netPosition)}
-        </BigNumber>
+        <BigNumber>{money(data.picture.periods.Month.netPosition)}</BigNumber>
       </Card>
       <Pressable onPress={() => selectGoal(goal.id)}>
         <Card style={{ marginTop: 18 }}>

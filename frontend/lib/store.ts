@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { fetchNessieSnapshot } from '@/lib/finance/api';
 import type { NessieSnapshot } from '@/lib/finance/api';
-import { buildData } from '@/lib/finance/data';
+import { buildData, demoSnapshot } from '@/lib/finance/data';
 import type { FinanceData, Simulation, Tab } from '@/lib/finance/types';
 
 type State = {
@@ -26,14 +26,24 @@ type State = {
   setSim: (key: keyof Simulation, value: number) => void;
 };
 
+const demoData = buildData(demoSnapshot);
+const demoSettings = demoData.simulate.settings;
+const demoSimulation = demoSettings && {
+  monthly: demoSettings.monthly.initial,
+  years: demoSettings.years.initial,
+  rate: demoSettings.rate.initial,
+};
+
 export const useFinanceStore = create<State>((set) => ({
-  data: buildData(),
+  data: demoData,
+  snapshot: demoSnapshot,
   loadFailed: false,
   tab: 'today',
   sheet: null,
   selectedGoal: null,
   predictMode: 'news',
   period: 'Month',
+  sim: demoSimulation,
   load: async (signal) => {
     set({ loadFailed: false });
     try {
@@ -53,9 +63,9 @@ export const useFinanceStore = create<State>((set) => ({
   },
   clear: () =>
     set({
-      snapshot: undefined,
-      data: buildData(),
-      sim: undefined,
+      snapshot: demoSnapshot,
+      data: demoData,
+      sim: demoSimulation,
       loadFailed: false,
     }),
   setTab: (tab) => set({ tab }),
