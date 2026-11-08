@@ -1,2 +1,2 @@
-import { PictureScreen } from '@/components/screens';
+import { PictureScreen } from '@/components/PictureScreen';
 export default PictureScreen;
