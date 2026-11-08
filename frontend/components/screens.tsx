@@ -156,7 +156,7 @@ export function TodayScreen() {
         <BigNumber>{money(data.picture.periods.Month.netPosition)}</BigNumber>
       </Card>
       <Pressable onPress={() => selectGoal(goal.id)}>
-        <Card>
+        <Card style={{ marginTop: 18 }}>
           <View style={s.between}>
             <View style={{ flex: 1 }}>
               <Eyebrow>NEXT GOAL</Eyebrow>
