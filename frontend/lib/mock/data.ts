@@ -3,7 +3,7 @@ import { MockData } from "./types";
 export const mockData: MockData = {
   profile: { name: "Jordan", demoTag: "Synthetic demo data", todayLabel: "SATURDAY · NOVEMBER 7" },
   today: {
-    days: 112, range: [98, 126], cause: "A tight stretch after your spring insurance bill.", gardenDelta: 8,
+    gardenDelta: 8,
     timeline: [
       { day: "NOV 08", label: "Payday", amount: 2850, kind: "good" },
       { day: "NOV 14", label: "Rent + bills", amount: -2140, kind: "bill" },
@@ -27,17 +27,17 @@ export const mockData: MockData = {
         ]
       },
       Month: {
-        netPosition: 48240, change: 2.6,
+        netPosition: 47900, change: 2.6,
         chart: [
           { label: "Oct 5", value: 47020 }, { label: "Oct 12", value: 47380 }, { label: "Oct 19", value: 47610 },
-          { label: "Oct 26", value: 47900, projected: 47900 }, { label: "Now", value: 48240, projected: 48240 }, { label: "Nov 14", projected: 48620 }
+          { label: "Oct 26", value: 47740, projected: 47740 }, { label: "Now", value: 47900, projected: 47900 }, { label: "Nov 14", projected: 48620 }
         ]
       },
       Year: {
-        netPosition: 48240, change: 18.4,
+        netPosition: 47600, change: 18.4,
         chart: [
           { label: "Dec", value: 40740 }, { label: "Feb", value: 41980 }, { label: "Apr", value: 43220 }, { label: "Jun", value: 44760 },
-          { label: "Aug", value: 46210 }, { label: "Oct", value: 47600, projected: 47600 }, { label: "Now", value: 48240, projected: 48240 }, { label: "Feb", projected: 50780 }
+          { label: "Aug", value: 46210 }, { label: "Oct", value: 47080, projected: 47080 }, { label: "Now", value: 47600, projected: 47600 }, { label: "Feb", projected: 50780 }
         ]
       }
     },
@@ -55,9 +55,9 @@ export const mockData: MockData = {
     { id: "car", title: "Next car", saved: 3600, target: 14000, eta: "Nov 20, 2028", growth: .29, note: "Down 3% after a higher repair estimate." }
   ],
   shocks: [
-    { id: "repair", title: "Car repair", amount: 2400, detail: "One surprise, due today", daysLost: 26 },
-    { id: "income", title: "Lose income", amount: 5700, detail: "60 days without pay", daysLost: 61 },
-    { id: "rent", title: "Rent rises", amount: 2400, detail: "$200 more for 12 months", daysLost: 35 }
+    { id: "repair", title: "Car repair", amount: 2400, detail: "One surprise, due today" },
+    { id: "income", title: "Lose income", amount: 5700, detail: "60 days without pay" },
+    { id: "rent", title: "Rent rises", amount: 2400, detail: "$200 more for 12 months" }
   ],
   waterfall: [
     { name: "Checking", amount: 680, cost: "$0 cost", color: "#38BDF8" },
