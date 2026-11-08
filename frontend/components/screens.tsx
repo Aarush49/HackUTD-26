@@ -1,9 +1,10 @@
-import { Children, ReactNode, useState } from "react";
+import { ReactNode, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowRight, ChevronRight, CircleDollarSign, Landmark, Newspaper, Sparkles, TrendingUp, WalletCards, Wrench } from "lucide-react-native";
 import Svg, { Circle } from "react-native-svg";
 import Animated, { FadeIn, LinearTransition } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFinanceStore } from "@/lib/store";
 import { colors } from "@/lib/theme";
 import { Badge, BalanceAreaChart, BigNumber, Button3D, Card, ChunkySlider, Eyebrow, Heading, LineChartWithNodes, SegmentedPill, StatTile, TrustTag } from "./ui";
@@ -13,14 +14,16 @@ import { SkyBackground } from "./Background";
 const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
 
 function ScreenShell({ children }: { children: ReactNode }) {
+  const insets = useSafeAreaInsets();
   return (
     <SkyBackground>
       <GardenLayer />
       <ScrollView
-        contentContainerStyle={s.screen}
+        contentContainerStyle={[s.screen, { paddingBottom: insets.bottom + 104 }]}
+        contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
       >
-        <View style={s.headerSpacer} />
+        <View style={{ height: insets.top + 64 }} />
         {children}
       </ScrollView>
     </SkyBackground>
@@ -149,7 +152,7 @@ function Title({ eyebrow, children }: { eyebrow: string; children: ReactNode }) 
 function Advice() { return <Text style={s.advice}>Informational, not financial advice.</Text>; }
 
 const s = StyleSheet.create({
-  screen: { paddingHorizontal: 16, paddingBottom: 130 }, headerSpacer: { height: 72 }, fixedHeader: { position: "absolute", top: 64, left: 16, right: 16, zIndex: 2 },
+  screen: { paddingHorizontal: 16 },
   between: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }, row: { flexDirection: "row", alignItems: "center", gap: 12 },
   sub: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21, color: colors.muted, marginTop: 8 }, title: { fontFamily: "Fraunces_600SemiBold", fontSize: 27, color: colors.ink, marginTop: 4 },
   serif: { fontFamily: "Fraunces_600SemiBold", fontSize: 21, color: colors.ink, marginVertical: 5 }, strong: { fontFamily: "Inter_700Bold", fontSize: 12, color: colors.ink }, small: { fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 16, color: colors.muted }, mini: { fontFamily: "Inter_400Regular", fontSize: 9, color: colors.muted, letterSpacing: .4 },
