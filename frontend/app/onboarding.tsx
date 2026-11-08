@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkyBackground } from '@/components/Background';
+import { MotionReveal } from '@/components/MotionReveal';
 import { Button3D, Card, Eyebrow, Heading } from '@/components/ui';
 import { Sapling } from '@/components/garden';
 import { useAuthStore } from '@/lib/auth/store';
@@ -25,46 +26,69 @@ export default function Onboarding() {
           { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 24 },
         ]}
       >
-        <View style={s.top}>
-          <Eyebrow>ONE SMALL START</Eyebrow>
-        </View>
-        <Heading accent="first.">Plant one goal</Heading>
-        <View style={s.plant}>
+        <MotionReveal>
+          <View style={s.top}>
+            <Eyebrow>ONE SMALL START</Eyebrow>
+          </View>
+          <Heading accent="first.">Plant one goal</Heading>
+        </MotionReveal>
+        <MotionReveal beat="second" style={s.plant}>
           <Sapling
             ambient
             goal={{ title: choices[selected], growth: 0.2 + selected * 0.18 }}
             onPress={() => {}}
           />
-        </View>
-        {newsStep ? <NewsSetup onSaved={() => { complete(); router.replace('/(tabs)'); }}/>: <Card>
-          <Text style={s.copy}>Preview a goal theme for your garden.</Text>
-          <View style={s.choices}>
-            {choices.map((choice, index) => (
-              <Pressable
-                key={choice}
-                onPress={() => setSelected(index)}
-                style={[s.choice, selected === index && s.active]}
+        </MotionReveal>
+        <MotionReveal key={newsStep ? 'news' : 'goal'} beat="third">
+          {newsStep ? (
+            <NewsSetup
+              onSaved={() => {
+                complete();
+                router.replace('/(tabs)');
+              }}
+            />
+          ) : (
+            <Card>
+              <Text style={s.copy}>Preview a goal theme for your garden.</Text>
+              <View style={s.choices}>
+                {choices.map((choice, index) => (
+                  <Pressable
+                    key={choice}
+                    onPress={() => setSelected(index)}
+                    style={[s.choice, selected === index && s.active]}
+                  >
+                    <Text
+                      style={[
+                        s.choiceText,
+                        selected === index && { color: colors.pink },
+                      ]}
+                    >
+                      {choice}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Button3D
+                onClick={() => {
+                  setNewsStep(true);
+                }}
               >
-                <Text
-                  style={[
-                    s.choiceText,
-                    selected === index && { color: colors.pink },
-                  ]}
-                >
-                  {choice}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <Button3D
-            onClick={() => {
-              setNewsStep(true);
-            }}
-          >
-            Continue to news setup
-          </Button3D>
-        </Card>}
-        {newsStep && <Button3D tone="white" onClick={() => { complete(); router.replace('/(tabs)'); }}>Skip news setup for now</Button3D>}
+                Continue to news setup
+              </Button3D>
+            </Card>
+          )}
+          {newsStep && (
+            <Button3D
+              tone="white"
+              onClick={() => {
+                complete();
+                router.replace('/(tabs)');
+              }}
+            >
+              Skip news setup for now
+            </Button3D>
+          )}
+        </MotionReveal>
       </ScrollView>
     </SkyBackground>
   );

@@ -80,7 +80,7 @@ def purchase_suggestions(profile):
 
 
 def query_for(prefs):
-    terms = prefs.topics + ([prefs.destination] if prefs.destination else []) + prefs.goals
+    terms = prefs.goals + prefs.topics + ([prefs.destination] if prefs.destination else [])
     safe = list(dict.fromkeys(" ".join(re.findall(r"\w+", t, flags=re.UNICODE))[:60] for t in terms))
     return " OR ".join(f'"{term}"' for term in safe[:6] if term)
 

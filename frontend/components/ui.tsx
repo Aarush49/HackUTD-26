@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useContext, useEffect, useId } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -11,8 +11,25 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import Animated, { FadeIn } from 'react-native-reanimated';
-import Svg, { Circle, Path, Polyline, Text as SvgText } from 'react-native-svg';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  ReduceMotion,
+  useAnimatedProps,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import Svg, {
+  Circle,
+  ClipPath,
+  Defs,
+  G,
+  Path,
+  Polyline,
+  Rect,
+  Text as SvgText,
+} from 'react-native-svg';
+import { ReducedMotionContext } from '@/lib/motion';
 import { colors, radii } from '@/lib/theme';
 const StyleSheet: any = NativeStyleSheet;
 const ReactNodeFragment = ({ children }: { children: ReactNode }) => (
@@ -199,6 +216,54 @@ export function Heading({
 }
 type ChartLine = { key: string; color: string; dashed?: boolean };
 
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
+
+function ChartTrace({
+  children,
+  start,
+  end,
+  height,
+}: {
+  children: ReactNode;
+  start: number;
+  end: number;
+  height: number;
+}) {
+  const clipId = `chart-trace-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const reduceMotion = useContext(ReducedMotionContext);
+  const progress = useSharedValue(reduceMotion ? 1 : 0);
+
+  useEffect(() => {
+    progress.value = reduceMotion
+      ? 1
+      : withTiming(1, {
+          duration: 800,
+          easing: Easing.inOut(Easing.cubic),
+          reduceMotion: ReduceMotion.System,
+        });
+    return () => cancelAnimation(progress);
+  }, [progress, reduceMotion]);
+
+  const animatedProps = useAnimatedProps(() => ({
+    width: (end - start) * progress.value,
+  }));
+
+  return (
+    <>
+      <Defs>
+        <ClipPath id={clipId}>
+          <AnimatedRect
+            x={start}
+            height={height}
+            animatedProps={animatedProps}
+          />
+        </ClipPath>
+      </Defs>
+      <G clipPath={`url(#${clipId})`}>{children}</G>
+    </>
+  );
+}
+
 export function LineChartWithNodes({
   data,
   lines,
@@ -228,52 +293,62 @@ export function LineChartWithNodes({
     min === max
       ? height / 2
       : height - pad - ((value - min) / (max - min)) * (height - pad * 2);
+  const traceKey = JSON.stringify(
+    data.map((row) => lines.map(({ key }) => row[key]))
+  );
   return (
     <Svg width={w} height={height} accessibilityLabel="Estimated balance trend">
-      {lines.map((line) => {
-        const segments: { index: number; value: number }[][] = [];
-        let segment: { index: number; value: number }[] = [];
-        data.forEach((row, index) => {
-          const value = row[line.key];
-          if (typeof value === 'number' && Number.isFinite(value))
-            segment.push({ index, value });
-          else if (segment.length) {
-            segments.push(segment);
-            segment = [];
-          }
-        });
-        if (segment.length) segments.push(segment);
-        return segments.map((points) => (
-          <ReactNodeFragment key={`${line.key}-${points[0].index}`}>
-            {points.length > 1 && (
-              <Polyline
-                points={points
-                  .map((point) => `${x(point.index)},${y(point.value)}`)
-                  .join(' ')}
-                fill="none"
-                stroke={line.color}
-                strokeWidth={3}
-                strokeDasharray={line.dashed ? '3 7' : undefined}
-              />
-            )}
-            {points.map((point, pointIndex) => (
-              <Circle
-                key={point.index}
-                cx={x(point.index)}
-                cy={y(point.value)}
-                r={4.5}
-                fill={
-                  line.dashed && pointIndex === points.length - 1
-                    ? colors.pink
-                    : 'white'
-                }
-                stroke={line.color}
-                strokeWidth={2.5}
-              />
-            ))}
-          </ReactNodeFragment>
-        ));
-      })}
+      <ChartTrace
+        key={traceKey}
+        start={x(0) - 6}
+        end={x(data.length - 1) + 6}
+        height={height}
+      >
+        {lines.map((line) => {
+          const segments: { index: number; value: number }[][] = [];
+          let segment: { index: number; value: number }[] = [];
+          data.forEach((row, index) => {
+            const value = row[line.key];
+            if (typeof value === 'number' && Number.isFinite(value))
+              segment.push({ index, value });
+            else if (segment.length) {
+              segments.push(segment);
+              segment = [];
+            }
+          });
+          if (segment.length) segments.push(segment);
+          return segments.map((points) => (
+            <ReactNodeFragment key={`${line.key}-${points[0].index}`}>
+              {points.length > 1 && (
+                <Polyline
+                  points={points
+                    .map((point) => `${x(point.index)},${y(point.value)}`)
+                    .join(' ')}
+                  fill="none"
+                  stroke={line.color}
+                  strokeWidth={3}
+                  strokeDasharray={line.dashed ? '3 7' : undefined}
+                />
+              )}
+              {points.map((point, pointIndex) => (
+                <Circle
+                  key={point.index}
+                  cx={x(point.index)}
+                  cy={y(point.value)}
+                  r={4.5}
+                  fill={
+                    line.dashed && pointIndex === points.length - 1
+                      ? colors.pink
+                      : 'white'
+                  }
+                  stroke={line.color}
+                  strokeWidth={2.5}
+                />
+              ))}
+            </ReactNodeFragment>
+          ));
+        })}
+      </ChartTrace>
       {data.map(
         (row, index) =>
           (index === 0 ||
@@ -314,35 +389,40 @@ export function BalanceAreaChart({
   const min = Math.min(...values),
     max = Math.max(...values);
   const x = (index: number) =>
-    left + (index * (w - left - right)) / (data.length - 1);
+    left + (index * (w - left - right)) / Math.max(1, data.length - 1);
   const y = (value: number) =>
     top + ((max - value) / (max - min || 1)) * (h - top - bottom);
   const animationKey = data
     .map((row) => plans.map((plan) => row[plan.name]).join('-'))
     .join('|');
   return (
-    <Animated.View key={animationKey} entering={FadeIn.duration(350)}>
-      <Svg width="100%" viewBox={`0 0 ${w} ${h}`}>
-        {[0, 0.5, 1].map((ratio, index) => {
-          const gridY = top + ratio * (h - top - bottom),
-            value = Math.round(max - ratio * (max - min));
-          return (
-            <ReactNodeFragment key={index}>
-              <Path
-                d={`M ${left} ${gridY} H ${w - right}`}
-                stroke="rgba(11,58,91,.08)"
-                strokeWidth="1"
-              />
-              <SvgText
-                x={left - 5}
-                y={gridY + 3}
-                fill={colors.muted}
-                fontSize="8"
-                textAnchor="end"
-              >{`$${Math.round(value / 1000)}k`}</SvgText>
-            </ReactNodeFragment>
-          );
-        })}
+    <Svg width="100%" viewBox={`0 0 ${w} ${h}`}>
+      {[0, 0.5, 1].map((ratio, index) => {
+        const gridY = top + ratio * (h - top - bottom),
+          value = Math.round(max - ratio * (max - min));
+        return (
+          <ReactNodeFragment key={index}>
+            <Path
+              d={`M ${left} ${gridY} H ${w - right}`}
+              stroke="rgba(11,58,91,.08)"
+              strokeWidth="1"
+            />
+            <SvgText
+              x={left - 5}
+              y={gridY + 3}
+              fill={colors.muted}
+              fontSize="8"
+              textAnchor="end"
+            >{`$${Math.round(value / 1000)}k`}</SvgText>
+          </ReactNodeFragment>
+        );
+      })}
+      <ChartTrace
+        key={animationKey}
+        start={left - 6}
+        end={x(data.length - 1) + 6}
+        height={h}
+      >
         {plans.map((plan, index) => {
           const points = data.map(
               (row, rowIndex) =>
@@ -376,20 +456,20 @@ export function BalanceAreaChart({
             </ReactNodeFragment>
           );
         })}
-        {data.map((row, index) => (
-          <SvgText
-            key={index}
-            x={x(index)}
-            y={h - 7}
-            fill={colors.muted}
-            fontSize="9"
-            textAnchor="middle"
-          >
-            {String(row.label)}
-          </SvgText>
-        ))}
-      </Svg>
-    </Animated.View>
+      </ChartTrace>
+      {data.map((row, index) => (
+        <SvgText
+          key={index}
+          x={x(index)}
+          y={h - 7}
+          fill={colors.muted}
+          fontSize="9"
+          textAnchor="middle"
+        >
+          {String(row.label)}
+        </SvgText>
+      ))}
+    </Svg>
   );
 }
 

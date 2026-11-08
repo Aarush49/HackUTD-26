@@ -3,12 +3,15 @@ import { router } from 'expo-router';
 import { LogOut } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkyBackground } from '@/components/Background';
+import { MotionReveal } from '@/components/MotionReveal';
 import { Button3D, Card, Eyebrow, Heading } from '@/components/ui';
 import { useAuthStore } from '@/lib/auth/store';
+import { useFinanceStore } from '@/lib/store';
 import { colors } from '@/lib/theme';
 
 export default function Profile() {
   const { user, logout } = useAuthStore();
+  const name = useFinanceStore((state) => state.data.profile.name);
   const insets = useSafeAreaInsets();
   return (
     <SkyBackground>
@@ -19,26 +22,30 @@ export default function Profile() {
           { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 24 },
         ]}
       >
-        <View style={s.top}>
-          <Eyebrow>YOUR PROFILE</Eyebrow>
-        </View>
-        <Heading accent="you.">Made for</Heading>
-        <Card style={{ marginTop: 20 }}>
-          <Text style={s.name}>{user?.name}</Text>
-          <Text style={s.email}>{user?.email}</Text>
-          <View style={{ height: 18 }} />
-          <Button3D
-            onClick={async () => {
-              await logout();
-              router.replace('/(auth)/login');
-            }}
-          >
-            <View style={s.logout}>
-              <LogOut color="white" />
-              <Text style={s.logoutText}>Log out</Text>
-            </View>
-          </Button3D>
-        </Card>
+        <MotionReveal>
+          <View style={s.top}>
+            <Eyebrow>YOUR PROFILE</Eyebrow>
+          </View>
+          <Heading accent="you.">Made for</Heading>
+        </MotionReveal>
+        <MotionReveal beat="second">
+          <Card style={{ marginTop: 20 }}>
+            <Text style={s.name}>{name}</Text>
+            <Text style={s.email}>{user?.email}</Text>
+            <View style={{ height: 18 }} />
+            <Button3D
+              onClick={async () => {
+                await logout();
+                router.replace('/(auth)/login');
+              }}
+            >
+              <View style={s.logout}>
+                <LogOut color="white" />
+                <Text style={s.logoutText}>Log out</Text>
+              </View>
+            </Button3D>
+          </Card>
+        </MotionReveal>
         <Pressable onPress={() => router.back()} style={s.back}>
           <Text style={s.backText}>Back to the garden</Text>
         </Pressable>

@@ -17,8 +17,10 @@ import {
 } from '@expo-google-fonts/inter';
 import { useAuthStore } from '@/lib/auth/store';
 import { useFinanceStore } from '@/lib/store';
+import { ReducedMotionContext, useSystemReducedMotion } from '@/lib/motion';
 SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
+  const reduceMotion = useSystemReducedMotion();
   const [fonts] = useFonts({
       Fraunces_600SemiBold,
       Fraunces_600SemiBold_Italic,
@@ -56,9 +58,16 @@ export default function RootLayout() {
   }, [fonts, status, needs, segments, router]);
   if (!fonts || status === 'loading') return null;
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false, animation: 'fade' }} />
-    </GestureHandlerRootView>
+    <ReducedMotionContext value={reduceMotion}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <StatusBar style="dark" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: reduceMotion ? 'none' : 'fade',
+          }}
+        />
+      </GestureHandlerRootView>
+    </ReducedMotionContext>
   );
 }

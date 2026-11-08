@@ -1,3 +1,4 @@
+
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { ChevronRight, Newspaper } from 'lucide-react-native';
@@ -6,37 +7,48 @@ import { useFinanceStore } from '@/lib/store';
 import { colors } from '@/lib/theme';
 import { BigNumber, Card, Eyebrow } from './ui';
 import { ScreenShell, ScreenIntro, ProgressRing } from './screens';
+import { MotionReveal } from './MotionReveal';
 
 export function TodayScreen() {
   const { data, selectGoal } = useFinanceStore();
   const goal = data.goals[0];
+
   return (
     <ScreenShell>
       <ScreenIntro
         eyebrow="QUICK SUMMARY"
         title={`Hello, ${data.profile.name}`}
       />
-      <Card>
-        <Eyebrow>NET POSITION · ESTIMATED</Eyebrow>
-        <BigNumber>{money(data.picture.periods.Month.netPosition)}</BigNumber>
-      </Card>
-      <Pressable onPress={() => selectGoal(goal.id)}>
-        <Card style={{ marginTop: 18 }}>
-          <View style={s.between}>
-            <View style={{ flex: 1 }}>
-              <Eyebrow>NEXT GOAL</Eyebrow>
-              <Text style={s.serif}>{goal.title}</Text>
-              <Text style={s.small}>ETA · {goal.eta}</Text>
-              <Text style={s.sub}>
-                {money(goal.saved)} of {money(goal.target)}
-              </Text>
-            </View>
-            <ProgressRing
-              progress={goal.saved === undefined ? undefined : goal.growth}
-            />
-          </View>
+
+      <MotionReveal beat="second">
+        <Card>
+          <Eyebrow>NET POSITION · ESTIMATED</Eyebrow>
+          <BigNumber>
+            {money(data.picture.periods.Month.netPosition)}
+          </BigNumber>
         </Card>
-      </Pressable>
+      </MotionReveal>
+
+      <MotionReveal beat="third">
+        <Pressable onPress={() => selectGoal(goal.id)}>
+          <Card style={{ marginTop: 18 }}>
+            <View style={s.between}>
+              <View style={{ flex: 1 }}>
+                <Eyebrow>NEXT GOAL</Eyebrow>
+                <Text style={s.serif}>{goal.title}</Text>
+                <Text style={s.small}>ETA · {goal.eta}</Text>
+                <Text style={s.sub}>
+                  {money(goal.saved)} of {money(goal.target)}
+                </Text>
+              </View>
+              <ProgressRing
+                progress={goal.saved === undefined ? undefined : goal.growth}
+              />
+            </View>
+          </Card>
+        </Pressable>
+      </MotionReveal>
+
       <Pressable
         onPress={() =>
           router.push({
@@ -61,11 +73,13 @@ export function TodayScreen() {
           </View>
         </Card>
       </Pressable>
+
       <Card style={{ marginTop: 18 }}>
         <Eyebrow>WHERE YOU MIGHT LOSE MONEY</Eyebrow>
         <Text style={s.serif}>{data.losses[0].title}</Text>
         <Text style={s.strong}>
-          {money(data.losses[0].minimum)}–{money(data.losses[0].maximum)}{' '}
+          {money(data.losses[0].minimum)}–
+          {money(data.losses[0].maximum)}{' '}
           estimated
         </Text>
         <Text style={s.small}>{data.losses[0].reason}</Text>
@@ -95,7 +109,11 @@ const s = StyleSheet.create({
     color: colors.ink,
     marginVertical: 5,
   },
-  strong: { fontFamily: 'Inter_700Bold', fontSize: 12, color: colors.ink },
+  strong: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 12,
+    color: colors.ink,
+  },
   small: {
     fontFamily: 'Inter_400Regular',
     fontSize: 11,
