@@ -39,6 +39,57 @@ const plans = [
   { name: 'Growth', color: '#FF2E93' },
 ];
 
+export const demoSnapshot: NessieSnapshot = {
+  accounts: [],
+  asOf: '2026-11-07',
+  dailyChanges: {
+    '2026-11-02': 50,
+    '2026-11-03': 70,
+    '2026-11-04': -40,
+    '2026-11-05': 150,
+    '2026-11-06': 120,
+  },
+  historyStart: '2026-10-01',
+  income: 5700,
+  cashFlow: 3480,
+  runway: 5.2,
+  liquidReserves: 22540,
+  inputs: {
+    accounts: {
+      c1: { balance: 3240 },
+      s1: { balance: 12800, rate: 4.35 },
+      cd: { balance: 6500, rate: 4.65 },
+      ira: { balance: 68400 },
+      cc: { balance: -1840, rate: 22.4 },
+      auto: { balance: -11260, rate: 6.1 },
+      mort: { balance: -29600, rate: 4 },
+    },
+    cashFlow: { income: 5700, spending: 2220, priorMonthlyGrowth: 650 },
+    goals: {
+      japan: { saved: 4200, target: 6500, eta: '2027-04-18', change: 6 },
+      home: { saved: 12800, target: 18000, eta: '2027-08-04' },
+      car: { saved: 3600, target: 14000, eta: '2028-11-20', change: 3 },
+    },
+    risk: { inflation: 3.1, monthlyFees: 10, incomeReduction: 0.7, rangeMargin: 18 },
+    simulation: {
+      monthly: { initial: 650, min: 100, max: 1800, step: 50 },
+      years: { initial: 8, min: 2, max: 20, step: 1 },
+      rate: { initial: 6.5, min: 2, max: 12, step: 0.5 },
+      growthPremium: 2.5,
+    },
+    impact: {
+      'Fed holds rates': [-180, -0.25, -0.3, 9],
+      'Inflation cools': [120, -0.15, -0.2, -5],
+      'Oil prices climb': [-240, 0, 0.15, 12],
+      range: [80, 0.2, 0.3, 3],
+    },
+    display: {
+      accountRates: { s1: 4.35, cd: 4.65, cc: 22.4, auto: 6.1, mort: 4 },
+      defaultImpact: [-180, -0.25, -0.3, 9],
+    },
+  },
+};
+
 export const money = (value: number | undefined) =>
   value === undefined
     ? '—'

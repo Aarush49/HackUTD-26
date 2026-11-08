@@ -1,3 +1,4 @@
+
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { ChevronRight, Newspaper } from 'lucide-react-native';
@@ -9,24 +10,25 @@ import { ScreenShell, ScreenIntro, ProgressRing } from './screens';
 import { MotionReveal } from './MotionReveal';
 
 export function TodayScreen() {
-  const { data, selectGoal, loadFailed } = useFinanceStore();
+  const { data, selectGoal } = useFinanceStore();
   const goal = data.goals[0];
+
   return (
     <ScreenShell>
       <ScreenIntro
         eyebrow="QUICK SUMMARY"
         title={`Hello, ${data.profile.name}`}
       />
+
       <MotionReveal beat="second">
         <Card>
           <Eyebrow>NET POSITION · ESTIMATED</Eyebrow>
           <BigNumber>
-            {loadFailed
-              ? 'Unavailable'
-              : money(data.picture.periods.Month.netPosition)}
+            {money(data.picture.periods.Month.netPosition)}
           </BigNumber>
         </Card>
       </MotionReveal>
+
       <MotionReveal beat="third">
         <Pressable onPress={() => selectGoal(goal.id)}>
           <Card style={{ marginTop: 18 }}>
@@ -46,6 +48,7 @@ export function TodayScreen() {
           </Card>
         </Pressable>
       </MotionReveal>
+
       <Pressable
         onPress={() =>
           router.push({
@@ -70,11 +73,13 @@ export function TodayScreen() {
           </View>
         </Card>
       </Pressable>
+
       <Card style={{ marginTop: 18 }}>
         <Eyebrow>WHERE YOU MIGHT LOSE MONEY</Eyebrow>
         <Text style={s.serif}>{data.losses[0].title}</Text>
         <Text style={s.strong}>
-          {money(data.losses[0].minimum)}–{money(data.losses[0].maximum)}{' '}
+          {money(data.losses[0].minimum)}–
+          {money(data.losses[0].maximum)}{' '}
           estimated
         </Text>
         <Text style={s.small}>{data.losses[0].reason}</Text>
@@ -104,7 +109,11 @@ const s = StyleSheet.create({
     color: colors.ink,
     marginVertical: 5,
   },
-  strong: { fontFamily: 'Inter_700Bold', fontSize: 12, color: colors.ink },
+  strong: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 12,
+    color: colors.ink,
+  },
   small: {
     fontFamily: 'Inter_400Regular',
     fontSize: 11,
