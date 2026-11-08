@@ -188,12 +188,12 @@ export function Heading({
   accent,
 }: {
   children: ReactNode;
-  accent: string;
+  accent?: string;
 }) {
   return (
     <View>
       <Text style={s.heading}>{children}</Text>
-      <Text style={s.accent}>{accent}</Text>
+      {accent ? <Text style={s.accent}>{accent}</Text> : null}
     </View>
   );
 }
