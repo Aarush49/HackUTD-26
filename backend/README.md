@@ -70,6 +70,10 @@ This uses observed gasoline spending to model a hypothetical 10% increase. For e
 | GET | `/api/dashboard/{customer_id}` | View account totals, spending, obligations, health indicators and goals |
 | GET | `/api/goals/{customer_id}` | Read saved goals |
 | POST | `/api/goals` | Create a goal |
+| GET | `/api/goals/{goal_id}/roots?customer_id=…` | Inspect recorded contribution sources or the live linked balance |
+| POST | `/api/goals/{goal_id}/contributions` | Record a contribution to a manually funded goal |
+| POST | `/api/goals/contribution-id` | Get an idempotency key for a contribution retry |
+| POST | `/api/goals/{goal_id}/news` | Check Google-grounded Gemini news for a saved goal |
 | PATCH | `/api/goals/{goal_id}` | Update a goal |
 | POST | `/api/goals/project` | Compare goal completion with a baseline |
 | POST | `/api/headlines/classify` | Classify an event without credentials |
@@ -111,6 +115,18 @@ For product comparisons, supply the terms of an illustrative CD, HYSA, balance-t
 - SQLite saves the inputs for replay against a new snapshot. It does not retain a customer API key or a copy of their Nessie profile. Banking reads are authenticated and the transfer endpoint only calculates resulting balances.
 
 ## Tests
+
+### Goal trees and relevant news
+
+Set `GEMINI_API_KEY` in `backend/.env` to enable Predict → News. `GEMINI_MODEL` defaults to `gemini-3.1-flash-lite` and can be changed to a search-grounding model available to your API project. Keep the key on the backend; never use an `EXPO_PUBLIC_` variable for it. Search grounding can incur Google API charges.
+
+Only the saved goal's name, target date, and `news_context` are sent to Gemini. Account balances, contribution sources, Nessie keys, and customer IDs are excluded from the prompt. Requests must identify the goal's customer, matching the existing trusted-local sandbox API model. There is no production user authentication layer in this demo.
+
+News checks are on demand. Reports include dated text, source references, source links, and Google's Search suggestions. Web embeds a script-disabled provider attribution page; native apps open that page in the browser. Reports are cached for ten minutes and capped at five new checks per customer per minute in this process. Attribution pages expire after one hour. This is not a background scheduler or push notification service. Model warnings appear in the app; they never alter the goal amount or date.
+
+New `goal_contexts` and `goal_contributions` tables are created alongside existing tables at startup, without changing existing goal columns. Existing goals continue to load. Contributions use decimal money and request UUIDs to prevent duplicate funding on retry. Linked-account goals always read Nessie funding and reject manual contributions; sources such as payroll are not fabricated from balances. Manually funded goals show user-recorded sources, with an explicit adjustment root if an existing balance was edited outside the ledger.
+
+The SQLAlchemy `Base` and database factory required by the existing routes are restored in `app/models/database.py`; the Mongo `Db` helper remains available. SQLAlchemy is now included in `requirements.txt`.
 
 ```powershell
 .\.venv\Scripts\python -m pytest -q

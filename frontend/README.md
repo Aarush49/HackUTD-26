@@ -46,3 +46,11 @@ Login and sign-up use a typed mock `AuthService`. Any valid email and password o
 - `lib/theme.ts` — shared colors, spacing, and radii
 
 The finance screens read the selected Nessie sandbox customer through FastAPI. Unavailable values reflect missing upstream data or projection inputs. The shock presets and simulator sliders are hypothetical inputs.
+
+## Goal trees and goal news
+
+Goals → **Create a new goal** saves a name, target amount/date, monthly plan, starting savings/source, and optional news context through FastAPI. Tap a goal or an ambient sapling to see its current tree against the full-grown target, then scroll to roots showing the recorded sources. Add contributions to manually funded goals; linked goals use their bank balance. Existing fonts, colors, cards, background, navigation, and stress/savings tools are reused.
+
+Predict opens **News**, alongside **Break** and **Simulate**. Each goal can request a Google-grounded Gemini check. Relevant changes show a review alert, possible effects, and citations. News checks require `GEMINI_API_KEY` in the backend environment. Without it, the screen explains that live news is not configured. There is no synthetic-news fallback in application code. Google Search suggestions render in a sandboxed frame on web and open in the browser on native.
+
+Run `npm run typecheck` for TypeScript validation. Backend tests cover goal persistence, root accounting, contribution retries, customer scoping, provider errors, news caching, and the Gemini payload. Live provider calls require your own configured credentials; mock tests do not incur provider charges.

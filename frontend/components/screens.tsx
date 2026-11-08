@@ -10,6 +10,7 @@ import { colors } from "@/lib/theme";
 import { Badge, BalanceAreaChart, BigNumber, Button3D, Card, ChunkySlider, Eyebrow, Heading, LineChartWithNodes, SegmentedPill, StatTile, TrustTag } from "./ui";
 import { GardenLayer, Sapling } from "./garden";
 import { SkyBackground } from "./Background";
+import { GoalNewsSection } from "./goal-news";
 
 function ScreenShell({ children }: { children?: ReactNode }) {
   const { status, error, load } = useFinanceStore();
@@ -214,27 +215,28 @@ export function PredictScreen() {
   const savings = dashboard.accounts.find(account => account.type.toLowerCase() === "savings" && number(account.balance) !== null);
   return <ScreenShell>
     <ScreenIntro eyebrow="LOOK AHEAD" title="Make uncertainty" accent="useful." sub="Stress test today, or sketch a longer tomorrow."/>
-    <SegmentedPill options={["break","simulate"] as const} value={predictMode} onChange={setPredictMode}/>
-    {predictMode === "break" ? <StressTest customerId={dashboard.customer.id}/> :
+    <SegmentedPill options={["news","break","simulate"] as const} value={predictMode} onChange={setPredictMode}/>
+    {predictMode === "news" ? <GoalNewsSection goals={dashboard.goals}/> : predictMode === "break" ? <StressTest customerId={dashboard.customer.id}/> :
       <SavingsSimulation customerId={dashboard.customer.id} savings={savings}/>}
   </ScreenShell>;
 }
 
 export function GoalsScreen() {
-  const { dashboard, baseline, selectGoal } = useFinanceStore();
+  const { dashboard, baseline, selectGoal, openSheet } = useFinanceStore();
   const goals = goalViews(dashboard, baseline);
   return <ScreenShell>
     <ScreenIntro eyebrow="GROW WITH INTENTION" title="Goals with" accent="roots."/>
+    <View style={{marginBottom:16}}><Button3D tone="white" onClick={() => openSheet("create-goal")}>＋ Create a new goal</Button3D></View>
     {goals.length === 0 && <Card><Text style={s.sub}>No saved goals for this customer.</Text></Card>}
     {goals.map(goal => {
       const percent = goal.growth === null ? null : Math.round(goal.growth * 100);
       const progress = Math.max(0, Math.min(100, percent ?? 0));
-      return <Pressable key={goal.id} onPress={() => selectGoal(goal.id)}><Card style={{marginBottom:13}}>
+      return <Pressable key={goal.id} accessibilityRole="button" accessibilityLabel={`View ${goal.title} tree and roots`} onPress={() => selectGoal(goal.id)}><Card style={{marginBottom:13}}>
         <View style={s.row}><View style={{flex:1}}><Eyebrow>ETA · {goal.eta}</Eyebrow><Text style={s.serif}>{goal.title}</Text>
           <Text style={s.small}>{money(goal.saved)} of {money(goal.target)}</Text>
           <View style={s.track}><View style={{width:`${progress}%`,height:8,borderRadius:8,backgroundColor:colors.pink}}/></View>
           <Badge tone={progress > 60 ? "green" : "blue"}>{percent === null ? "Progress unavailable" : `${percent}% grown`}</Badge>
-        </View><Sapling goal={goal} compact onPress={() => selectGoal(goal.id)}/></View>
+        </View><Sapling goal={goal} compact/></View>
       </Card></Pressable>;
     })}<Advice/>
   </ScreenShell>;

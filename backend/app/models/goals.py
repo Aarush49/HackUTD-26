@@ -23,3 +23,21 @@ class GoalRow(Base):
     version: Mapped[int] = mapped_column(default=1)
 
     __mapper_args__ = {"version_id_col": version}
+
+
+class GoalContextRow(Base):
+    """Separate table keeps existing goal databases compatible without column migrations."""
+    __tablename__ = "goal_contexts"
+
+    goal_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    news_context: Mapped[str] = mapped_column(String(500), default="")
+
+
+class GoalContributionRow(Base):
+    __tablename__ = "goal_contributions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    goal_id: Mapped[str] = mapped_column(String(36), index=True)
+    source: Mapped[str] = mapped_column(String(100))
+    amount: Mapped[str] = mapped_column(String(32))
+    contributed_on: Mapped[date] = mapped_column(Date)

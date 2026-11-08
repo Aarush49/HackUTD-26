@@ -3,13 +3,16 @@ type Money = string | number | null;
 type Customer = { id: string; first_name: string | null };
 export type Account = { id: string; type: string; nickname: string | null; balance: Money };
 type Debt = { id: string; kind: string; balance: Money };
-type Goal = {
+export type ApiGoal = {
   id: string;
+  customer_id: string;
   name: string;
   target_amount: Money;
   target_date: string | null;
   funding_account_id: string | null;
   initial_funded_amount: Money;
+  monthly_contribution: Money;
+  news_context: string;
 };
 type Bill = {
   id: string;
@@ -24,7 +27,7 @@ export type Dashboard = {
   customer: Customer;
   accounts: Account[];
   debts: Debt[];
-  goals: Goal[];
+  goals: ApiGoal[];
   bills: Bill[];
   known_account_net_worth: Money;
   liquid_reserves: Money;
@@ -85,6 +88,22 @@ export type Product = {
 };
 
 const apiOrigin = (process.env.EXPO_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+
+export const apiUrl = (path: string) => `${apiOrigin}/api${path}`;
+
+export type GoalCreate = {
+  customer_id: string; name: string; target_amount: string; target_date: string;
+  monthly_contribution: string; initial_funded_amount: string; opening_source: string; news_context: string;
+};
+export type GoalRoots = {
+  goal_id: string; saved: Money; can_contribute: boolean;
+  roots: { id: string; source: string; amount: Money; date: string | null; provenance: string }[];
+};
+export type GoalNews = {
+  id: string; goal_id: string; status: "watch" | "no_change" | "review"; text: string;
+  sources: { index: number; title: string; url: string }[];
+  checked_at: string; cached: boolean; suggestions_path: string;
+};
 
 export async function api<T>(path: string, body?: object, signal?: AbortSignal): Promise<T> {
   let response: Response;

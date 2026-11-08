@@ -6,15 +6,17 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import accounts, customers, dashboard, goals, headlines, nessie, products, risk, scenarios, simulation, transactions, transfers
+from app.api import accounts, customers, dashboard, goals, goal_news, headlines, nessie, products, risk, scenarios, simulation, transactions, transfers
 from app.config import Settings
 from app.integrations.nessie_client import NessieClient, NessieError
 from app.models.database import Base, database
 from app.services.goal_service import GoalConflict
 from app.services.projection_engine import ScenarioInputError
+from app.services.goal_news_service import GoalNewsService
 
 
-def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTransport | None = None,
+               news_transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
 
     @asynccontextmanager
@@ -26,10 +28,12 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
         try:
             Base.metadata.create_all(engine)
             app.state.nessie = NessieClient(settings, transport)
+            app.state.goal_news = GoalNewsService(settings, news_transport)
             try:
                 yield
             finally:
                 await app.state.nessie.close()
+                await app.state.goal_news.close()
         finally:
             engine.dispose()
 
@@ -60,7 +64,7 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
     def health():
         return {"status": "ok"}
 
-    for module in (nessie, customers, accounts, transactions, dashboard, goals, headlines, risk, simulation, products, scenarios, transfers):
+    for module in (nessie, customers, accounts, transactions, dashboard, goals, goal_news, headlines, risk, simulation, products, scenarios, transfers):
         app.include_router(module.router, prefix="/api")
     return app
 

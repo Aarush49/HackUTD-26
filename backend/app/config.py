@@ -11,6 +11,8 @@ class Settings:
     nessie_base_url: str = "https://prod-api.nessieisreal.com"
     nessie_customer_id: str = ""
     database_url: str = "sqlite:///./financial_navigator.db"
+    gemini_api_key: str = field(default="", repr=False)
+    gemini_model: str = "gemini-3.1-flash-lite"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -21,4 +23,6 @@ class Settings:
             nessie_base_url=os.getenv("NESSIE_BASE_URL", "").strip() or defaults.nessie_base_url,
             nessie_customer_id=os.getenv("NESSIE_CUSTOMER_ID", "").strip(),
             database_url=os.getenv("DATABASE_URL", "").strip() or defaults.database_url,
+            gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
+            gemini_model=os.getenv("GEMINI_MODEL", "").strip() or defaults.gemini_model,
         )

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { api, displayDate, number, resolveCustomerId } from "@/lib/api";
-import type { Dashboard, Product, Risk } from "@/lib/api";
+import type { ApiGoal, Dashboard, GoalCreate, Product, Risk } from "@/lib/api";
 
 export const headlineExamples = ["Fed holds rates", "Inflation cools", "Oil prices climb"];
 export const shockPresets = [
@@ -26,14 +26,16 @@ type State = {
   productsError: string | null;
   status: "idle" | "loading" | "ready" | "error";
   error: string | null;
-  sheet: null | "whatif" | "goal" | "sapling";
+  sheet: null | "whatif" | "goal" | "sapling" | "create-goal";
   selectedGoal: string | null;
   shock: string | null;
   fixed: boolean;
-  predictMode: "break" | "simulate";
+  predictMode: "news" | "break" | "simulate";
   period: "Week" | "Month" | "Year";
   sim: { monthly: number; years: number; rate: number };
   load: (retry?: boolean) => Promise<void>;
+  updateGoal: (goal: ApiGoal) => void;
+  createGoal: (input: GoalCreate) => Promise<ApiGoal>;
   openSheet: (sheet: State["sheet"]) => void;
   closeSheet: () => void;
   selectGoal: (id: string) => void;
@@ -58,7 +60,7 @@ export function goalViews(dashboard: Dashboard | null, baseline: Risk | null): G
     const target = number(goal.target_amount);
     return {
       id: goal.id, title: goal.name, saved, target,
-      eta: projection?.completion_date ? displayDate(projection.completion_date) : "Unavailable",
+      eta: projection?.completion_date ? displayDate(projection.completion_date) : goal.target_date ? displayDate(goal.target_date) : "Unavailable",
       growth: saved === null || target === null || target <= 0 ? null : saved / target,
     };
   });
@@ -67,7 +69,7 @@ export function goalViews(dashboard: Dashboard | null, baseline: Risk | null): G
 export const useFinanceStore = create<State>((set, get) => ({
   dashboard: null, baseline: null, baselineError: null, products: null, productsError: null,
   status: "idle", error: null, sheet: null, selectedGoal: null,
-  shock: null, fixed: false, predictMode: "break", period: "Month",
+  shock: null, fixed: false, predictMode: "news", period: "Month",
   sim: { monthly: 650, years: 8, rate: 6.5 },
   load: async (retry = false) => {
     const { status } = get();
@@ -78,8 +80,8 @@ export const useFinanceStore = create<State>((set, get) => ({
       const dashboard = await api<Dashboard>(`/dashboard/${encodeURIComponent(id)}`);
       set({ dashboard, status: "ready" });
       void api<Risk>("/risk/predict", { customer_id: dashboard.customer.id }).then(
-        baseline => set({ baseline }),
-        error => set({ baselineError: String(error.message) }),
+        baseline => { if (get().dashboard === dashboard) set({ baseline }); },
+        error => { if (get().dashboard === dashboard) set({ baselineError: String(error.message) }); },
       );
       void api<Product[]>("/products").then(
         products => set({ products }),
@@ -88,6 +90,22 @@ export const useFinanceStore = create<State>((set, get) => ({
     } catch (error) {
       set({ status: "error", error: error instanceof Error ? error.message : "Could not load the financial profile." });
     }
+  },
+  updateGoal: goal => {
+    const current = get().dashboard;
+    if (!current || goal.customer_id !== current.customer.id) return;
+    const exists = current.goals.some(item => item.id === goal.id);
+    const dashboard = { ...current, goals: exists ? current.goals.map(item => item.id === goal.id ? goal : item) : [...current.goals, goal] };
+    set({ dashboard, baseline: null, baselineError: null });
+    void api<Risk>("/risk/predict", { customer_id: dashboard.customer.id }).then(
+      baseline => { if (get().dashboard === dashboard) set({ baseline }); },
+      error => { if (get().dashboard === dashboard) set({ baselineError: String(error.message) }); },
+    );
+  },
+  createGoal: async input => {
+    const goal = await api<ApiGoal>("/goals", input);
+    get().updateGoal(goal);
+    return goal;
   },
   openSheet: sheet => set({ sheet }),
   closeSheet: () => set({ sheet: null }),
