@@ -1,7 +1,50 @@
+from decimal import Decimal
+
 from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import create_app
+
+
+def test_customer_options_respect_the_backend_key(api, sandbox):
+    sandbox.responses["/customers"].append({"_id": "second", "first_name": "Second", "last_name": "Customer"})
+    response = api.get("/api/nessie/customer-options")
+    assert response.status_code == 200
+    assert [item["id"] for item in response.json()["customers"]] == ["customer", "second"]
+    assert response.json()["default_customer_id"] == "customer"
+    sandbox.responses["/customers"].pop(0)
+    assert api.get("/api/nessie/customer-options").json()["default_customer_id"] is None
+
+
+def test_waterfall_uses_owned_liquid_balances(api):
+    response = api.post("/api/risk/funding-plan", json={"customer_id": "customer", "amount": "4000"})
+    assert response.status_code == 200
+    payload = response.json()
+    assert [(row["account_id"], Decimal(row["amount"])) for row in payload["sources"]] == [
+        ("checking", Decimal(1100)), ("savings", Decimal(2400)),
+    ]
+    assert Decimal(payload["uncovered_amount"]) == 500
+
+
+def test_activity_excludes_pending_and_internal_movements(api):
+    response = api.get("/api/dashboard/customer")
+    assert response.status_code == 200
+    activity = response.json()["transaction_activity"]
+    assert sum(Decimal(day["outflow"]) for day in activity) == 340
+    assert all(Decimal(day["inflow"]) != 300 for day in activity)
+
+
+def test_recurring_spending_shock_stops_after_requested_month(api, assumptions):
+    response = api.post("/api/risk/predict", json={
+        "customer_id": "customer", "horizon_months": 3, "assumptions": assumptions,
+        "shock": {"monthly_spending_increase": "200", "monthly_spending_increase_months": 2},
+    })
+    baseline = api.post("/api/risk/predict", json={
+        "customer_id": "customer", "horizon_months": 3, "assumptions": assumptions,
+    })
+    assert response.status_code == baseline.status_code == 200
+    assert [Decimal(before["liquid_balance"]) - Decimal(after["liquid_balance"])
+            for before, after in zip(baseline.json()["monthly"], response.json()["monthly"])] == [0, 200, 400, 400]
 
 
 def test_docs_and_graceful_missing_credentials():

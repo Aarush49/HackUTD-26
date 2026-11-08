@@ -1,43 +1,94 @@
-import { ReactNode, useState } from "react";
+import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams, useSegments } from "expo-router";
-import { ArrowRight, ChevronRight, CircleDollarSign, Landmark, Newspaper, Sparkles, TrendingUp, WalletCards, Wrench } from "lucide-react-native";
+import { ArrowRight, ChevronRight, CircleDollarSign, Landmark, Newspaper, ShieldCheck, Sparkles, TrendingUp, WalletCards, Wrench } from "lucide-react-native";
 import Svg, { Circle } from "react-native-svg";
 import Animated, { FadeIn, LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFinanceStore } from "@/lib/store";
+import { api, displayDate, money, number, runwayLabel } from "@/lib/api";
+import type { Account, Dashboard, FundingPlan, HeadlineAnalysis, Risk, Simulation } from "@/lib/api";
+import { goalViews, headlineExamples, shockPresets, useFinanceStore } from "@/lib/store";
 import { colors } from "@/lib/theme";
 import { Badge, BalanceAreaChart, BigNumber, Button3D, Card, ChunkySlider, Eyebrow, Heading, LineChartWithNodes, SegmentedPill, StatTile, TrustTag } from "./ui";
 import { GardenLayer, Sapling } from "./garden";
 import { SkyBackground } from "./Background";
 import { BrandHeader } from "./BrandHeader";
+import { ScenarioResponse } from "./ScenarioResponse";
+import { FinanceGate } from "./FinanceGate";
+import { GoalEditor } from "./GoalEditor";
 
-const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
-
-function ScreenShell({ children }: { children: ReactNode }) {
+function ScreenShell({ children, header }: { children?: ReactNode; header?: ReactNode }) {
   const insets = useSafeAreaInsets();
   const segments = useSegments();
   const insideTabs = segments[0] === "(tabs)";
-  return (
-    <SkyBackground>
-      <GardenLayer />
-      {!insideTabs && <View style={[s.standaloneHeader, { top: insets.top + 10 }]}><BrandHeader compact/></View>}
-      <ScrollView
-        contentContainerStyle={[s.screen, { paddingBottom: insets.bottom + 104 }]}
-        contentInsetAdjustmentBehavior="never"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={{ height: insets.top + 64 }} />
-        {children}
-      </ScrollView>
-    </SkyBackground>
-  );
+  return <SkyBackground><GardenLayer/>{header}
+    {!insideTabs && <View style={[s.standaloneHeader, { top: insets.top + (header ? 48 : 10) }]}><BrandHeader compact/></View>}
+    <ScrollView contentContainerStyle={[s.screen, {paddingBottom: insets.bottom + 104}]}
+      contentInsetAdjustmentBehavior="never" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <View style={{height: header ? 54 : insets.top + 64}}/><FinanceGate>{children}</FinanceGate>
+  </ScrollView></SkyBackground>;
 }
 
 function ScreenIntro({ eyebrow, title, accent, sub }: { eyebrow: string; title: string; accent: string; sub?: string }) {
-  return <View style={{ marginBottom: 20 }}><View style={s.between}><Eyebrow>{eyebrow}</Eyebrow><TrustTag/></View>
+  return <View style={{marginBottom:20}}><View style={s.between}><Eyebrow>{eyebrow}</Eyebrow><TrustTag/></View>
     <Heading accent={accent}>{title}</Heading>{sub && <Text style={s.sub}>{sub}</Text>}
   </View>;
+}
+
+function runwayDetail(risk: Risk | null, error?: string | null) {
+  if (error) return error;
+  if (!risk) return "Calculating from your Nessie profile…";
+  if (risk.first_shortfall_date) {
+    return `Available cash may fall short of modeled expenses by ${displayDate(risk.first_shortfall_date)}.`;
+  }
+  if (hasNoModeledShortfall(risk)) {
+    return `Available cash covers modeled expenses for the next ${risk.monthly.length - 1} months.` +
+      (risk.status === "incomplete" ? " This estimate uses the available Nessie data." : "");
+  }
+  return risk.missing_requirements[0] ?? "The forecast needs more data to estimate a cash shortfall.";
+}
+
+function hasNoModeledShortfall(risk: Risk) {
+  return risk.status === "no_shortfall_within_horizon" ||
+    (risk.first_shortfall_month == null && risk.monthly.length > 1 &&
+      risk.monthly.slice(1).every(row => number(row.liquidity_shortfall) === 0));
+}
+
+function forecastRunway(risk: Risk | null, error?: string | null) {
+  if (error) return "Couldn’t load";
+  if (!risk) return "Loading…";
+  if (risk.first_shortfall_month != null) return runwayLabel(risk);
+  return hasNoModeledShortfall(risk) ? "No shortfall" : "Needs data";
+}
+
+const activityLines = [
+  {key:"inflow", color:colors.green},
+  {key:"outflow", color:colors.pink},
+];
+const dayMs = 86_400_000;
+
+function PostedActivity({ dashboard, days, monthly = false, label }: {
+  dashboard: Dashboard; days: number; monthly?: boolean; label: string;
+}) {
+  const cutoff = new Date(Date.parse(dashboard.data_completeness.retrieved_at.slice(0,10)) -
+    (days - 1) * dayMs).toISOString().slice(0,10);
+  const grouped = new Map<string, { inflow: number; outflow: number }>();
+  for (const day of dashboard.transaction_activity ?? []) {
+    if (day.date < cutoff) continue;
+    const key = monthly ? day.date.slice(0,7) + "-01" : day.date;
+    const total = grouped.get(key) ?? {inflow:0, outflow:0};
+    total.inflow += number(day.inflow) ?? 0;
+    total.outflow += number(day.outflow) ?? 0;
+    grouped.set(key, total);
+  }
+  const activity = Array.from(grouped, ([date, totals]) => ({
+    label: displayDate(date, monthly ? {month:"short"} : {month:"short",day:"numeric"}), ...totals,
+  }));
+  return <Card>{activity.length > 0 ? <>
+    <LineChartWithNodes data={activity} lines={activityLines} label={label} height={170}/>
+    <Text style={s.small}>Green · money in. Pink · money out. Posted Nessie activity.</Text>
+  </> : <Text style={s.small}>No posted transaction activity was returned for this period.</Text>}</Card>;
 }
 
 function ProgressRing({ progress }: { progress: number }) {
@@ -51,113 +102,357 @@ function ProgressRing({ progress }: { progress: number }) {
 }
 
 export function TodayScreen() {
-  const { data, selectGoal } = useFinanceStore();
-  const goal = data.goals[0];
+  const { dashboard, baseline, baselineError, selectGoal } = useFinanceStore();
+  if (!dashboard) return <ScreenShell/>;
+  const goal = goalViews(dashboard, baseline)[0];
+  const start = dashboard.data_completeness.retrieved_at.slice(0, 10);
+  const end = new Date(Date.parse(start) + 30 * dayMs).toISOString().slice(0, 10);
+  const bills = dashboard.bills.flatMap(bill => {
+    const due = bill.upcoming_payment_date ?? bill.payment_date;
+    return due && due >= start && due <= end && ["recurring", "pending"].includes(bill.status?.toLowerCase() ?? "")
+      ? [{ ...bill, due }] : [];
+  }).sort((a, b) => a.due.localeCompare(b.due));
   return <ScreenShell>
-    <ScreenIntro eyebrow={data.profile.todayLabel} title="Good morning," accent={`${data.profile.name}.`} sub="Your plans are taking root."/>
-    <Pressable onPress={() => selectGoal(goal.id)}><Card><View style={s.between}><View style={{ flex: 1 }}>
-      <Eyebrow>NEXT GOAL</Eyebrow><Text style={s.serif}>{goal.title}</Text><Text style={s.small}>ETA · {goal.eta}</Text>
-      <Text style={s.sub}>{money(goal.saved)} of {money(goal.target)}</Text>
-    </View><ProgressRing progress={goal.growth}/></View></Card></Pressable>
-    <View style={{ alignItems: "flex-start", marginTop: 14 }}><Badge tone="green">Garden grew {data.today.gardenDelta}% this week</Badge></View>
+    <ScreenIntro eyebrow={displayDate(start, {weekday:"long",month:"long",day:"numeric"}).toUpperCase()}
+      title="Good morning," accent={`${dashboard.customer.first_name || "there"}.`} sub="Your plans are taking root."/>
+    {goal ? <Pressable onPress={() => selectGoal(goal.id)}><Card style={{marginBottom:14}}><View style={s.between}>
+      <View style={{flex:1}}><Eyebrow>NEXT GOAL</Eyebrow><Text style={s.serif}>{goal.title}</Text>
+        <Text style={s.small}>ETA · {goal.eta}</Text><Text style={s.sub}>{money(goal.saved)} of {money(goal.target)}</Text></View>
+      {goal.growth !== null && <ProgressRing progress={goal.growth}/>}
+    </View></Card></Pressable> : <Pressable onPress={() => router.push("/(tabs)/goals")} style={s.link}>
+      <Text style={s.linkText}>Set your first savings goal</Text><ArrowRight size={15} color={colors.ink}/>
+    </Pressable>}
+    <Title eyebrow="LAST 30 DAYS">Recent cash activity.</Title>
+    <PostedActivity dashboard={dashboard} days={30} label="Recent cash activity chart"/>
+    <Card style={{marginTop:16}}><Eyebrow>YOUR FIRST BREAKING POINT</Eyebrow><BigNumber>{forecastRunway(baseline, baselineError)}</BigNumber>
+      <Text style={s.sub}>{runwayDetail(baseline, baselineError)}</Text>
+      <Pressable style={s.link} onPress={() => router.push("/(tabs)/predict")}>
+        <Text style={s.linkText}>See what could change it</Text><ArrowRight size={15} color={colors.ink}/>
+      </Pressable>
+    </Card>
     <Title eyebrow="NEXT 30 DAYS">Cash, in motion.</Title>
-    <Card>{data.today.timeline.map((event, index) => <View key={`${event.day}-${event.label}`} style={s.timeline}>
-      <View style={[s.timelineDot, { backgroundColor: event.kind === "good" ? colors.green : event.kind === "low" ? colors.amber : colors.pink }]}/>
-      <View style={{ flex: 1 }}><Text style={s.mini}>{event.day}</Text><Text style={s.strong}>{event.label}</Text></View>
-      <Text style={[s.strong, event.amount < 0 && { color: colors.danger }]}>{event.kind === "low" ? `${money(event.amount)} left` : `${event.amount > 0 ? "+" : ""}${money(event.amount)}`}</Text>
-      {index < data.today.timeline.length - 1 && <View style={s.timelineLine}/>} </View>)}</Card>
-    <Pressable onPress={() => router.push({ pathname: "/impact", params: { headline: data.today.headline } })}><Card style={{ marginTop: 18 }}><View style={s.row}>
-      <View style={s.icon}><Newspaper color={colors.ink}/></View><View style={{ flex: 1 }}><Eyebrow>IN THE NEWS</Eyebrow>
-        <Text style={s.strong}>{data.today.headline}</Text><Text style={s.small}>See the estimated effect on your rates and goals.</Text>
-      </View><ChevronRight color={colors.ink}/></View></Card></Pressable>
+    <Card>{bills.length === 0 && <Text style={s.sub}>Nessie has no dated bills for the next 30 days.</Text>}
+      {bills.map((bill, index) => {
+        const amount = number(bill.amount);
+        return <View key={bill.id} style={s.timeline}>
+          <View style={[s.timelineDot, {backgroundColor:colors.pink}]}/><View style={{flex:1}}>
+            <Text style={s.mini}>{displayDate(bill.due)}</Text><Text style={s.strong}>{bill.payee || bill.nickname || "Bill"}</Text>
+          </View><Text style={[s.strong,{color:colors.danger}]}>{money(amount === null ? null : -amount)}</Text>
+          {index < bills.length - 1 && <View style={s.timelineLine}/>}
+        </View>;
+      })}
+    </Card>
+    <Pressable onPress={() => router.push({ pathname: "/impact", params: { headline: headlineExamples[0] } })}><Card style={{marginTop:18}}><View style={s.row}>
+      <View style={s.icon}><Newspaper color={colors.ink}/></View><View style={{flex:1}}><Eyebrow>EXAMPLE HEADLINE</Eyebrow>
+        <Text style={s.strong}>{headlineExamples[0]}</Text><Text style={s.small}>Explore how a headline could affect you.</Text>
+      </View><ChevronRight color={colors.ink}/>
+    </View></Card></Pressable>
   </ScreenShell>;
 }
 
 export function PictureScreen() {
-  const { data, period, setPeriod } = useFinanceStore();
-  const picture = data.picture, selected = picture.periods[period];
-  const groups = [...new Set(picture.accounts.map(account => account.kind))];
+  const { dashboard, baseline, baselineError, period, setPeriod } = useFinanceStore();
+  if (!dashboard) return <ScreenShell/>;
+  const accounts = dashboard.accounts.map(account => {
+    const balance = number(account.balance);
+    return { id: account.id, kind: account.type, name: account.nickname || account.type,
+      balance: account.type.toLowerCase() === "credit card" && balance !== null ? -balance : balance };
+  });
+  for (const debt of dashboard.debts) {
+    if (debt.kind.toLowerCase() === "credit card") continue;
+    const balance = number(debt.balance);
+    accounts.push({ id: debt.id, kind: "Loans", name: debt.kind, balance: balance === null ? null : -balance });
+  }
+  const groups = [...new Set(accounts.map(account => account.kind))];
+  const current = number(dashboard.known_account_net_worth);
+  const monthly = baseline?.monthly.slice(1) ?? [];
+  const chart = [{ label: "Now", value: current, projected: number(baseline?.monthly[0]?.known_account_net_worth) },
+    ...monthly.map(row => ({ label: displayDate(row.date, {month:"short"}), value: null, projected: number(row.known_account_net_worth) }))];
+  const hasForecast = monthly.some(row => number(row.known_account_net_worth) !== null);
+  const interest = baseline?.monthly.slice(1, 13).map(row => number(row.interest_paid));
+  const annualInterest = interest?.length === 12 && interest.every(value => value !== null) &&
+    !baseline?.missing_requirements.length ? interest.reduce((sum, value) => sum + value, 0) : null;
   return <ScreenShell>
-    <ScreenIntro eyebrow="THE WHOLE PICTURE" title="Your money," accent="together." sub="Assets, debts and momentum—without the noise."/>
-    <SegmentedPill options={["Week", "Month", "Year"] as const} value={period} onChange={setPeriod}/>
-    <Card><Eyebrow>NET POSITION · ESTIMATED</Eyebrow><View style={s.between}><BigNumber>{money(selected.netPosition)}</BigNumber><Badge tone="green">↗ {selected.change}%</Badge></View>
-      <LineChartWithNodes key={period} data={selected.chart} lines={[{ key: "value", color: colors.ink }, { key: "projected", color: colors.pink, dashed: true }]}/>
-      <Text style={s.small}>Solid history · dotted projection · {period.toLowerCase()} view</Text></Card>
-    <View style={s.stats}><StatTile label="RUNWAY" value={picture.health.runway}/><StatTile label="CUSHION" value={money(picture.health.cushion)} tone="green"/></View>
-    <StatTile label="INTEREST DRAG" value={`${money(picture.health.interestDrag)}/yr`} tone="amber"/>
-    <Title eyebrow="ACCOUNTS">Where it lives.</Title><Card>{groups.map(group => <View key={group} style={s.group}><Text style={s.serif}>{group}</Text>
-      {picture.accounts.filter(account => account.kind === group).map(account => <View key={account.id} style={s.account}>
-        <View style={s.smallIcon}>{group === "Loans" ? <Landmark color={colors.ink} size={17}/> : group === "Credit" ? <WalletCards color={colors.ink} size={17}/> : <CircleDollarSign color={colors.ink} size={17}/>}</View>
-        <View style={{ flex: 1 }}><Text style={s.strong}>{account.name}</Text>{account.rate && <Text style={s.mini}>{account.rate}% estimated rate</Text>}</View>
-        <Text style={[s.strong, account.balance < 0 && { color: colors.danger }]}>{money(account.balance)}</Text>
-      </View>)}</View>)}</Card>
+    <ScreenIntro eyebrow="THE WHOLE PICTURE" title="Your money," accent="together." sub="Balances and projections for known Nessie accounts."/>
+    <Card><Eyebrow>KNOWN NET POSITION</Eyebrow><BigNumber>{money(current)}</BigNumber>
+      {chart.some(row => row.value !== null || row.projected !== null) &&
+        <LineChartWithNodes label="Projected net position chart" data={chart}
+          lines={[{key:"projected",color:colors.pink,dashed:true},{key:"value",color:colors.ink}]}/>}
+      {hasForecast && <Text style={s.small}>Current position and 12-month estimate.</Text>}
+      <Text style={s.small}>{baselineError ?? baseline?.missing_requirements[0] ??
+        (baseline ? (hasForecast ? null : "No future balance could be estimated.") : "Loading projection…")}</Text>
+    </Card>
+    <Title eyebrow="POSTED NESSIE TRANSACTIONS">Money in and out.</Title>
+    <SegmentedPill options={["Week","Month","Year"] as const} value={period} onChange={setPeriod}/>
+    <PostedActivity dashboard={dashboard} days={period === "Week" ? 7 : period === "Month" ? 30 : 365}
+      monthly={period === "Year"} label="Picture money in and out chart"/>
+    <View style={s.stats}><StatTile label="RUNWAY" value={forecastRunway(baseline, baselineError)}/>
+      <StatTile label="CUSHION" value={money(dashboard.liquid_reserves)} tone="green"/></View>
+    <StatTile label="INTEREST DRAG" value={annualInterest === null ? "Unavailable" : `${money(annualInterest)}/yr`} tone="amber"/>
+    <Title eyebrow="ACCOUNTS">Where it lives.</Title>
+    <Card>{groups.length === 0 && <Text style={s.sub}>No Nessie accounts were returned for this customer.</Text>}
+      {groups.map(group => <View key={group} style={s.group}><Text style={s.serif}>{group}</Text>
+        {accounts.filter(account => account.kind === group).map(account => <View key={account.id} style={s.account}>
+          <View style={s.smallIcon}>{group === "Loans" ? <Landmark color={colors.ink} size={17}/> :
+            group.toLowerCase() === "credit card" ? <WalletCards color={colors.ink} size={17}/> : <CircleDollarSign color={colors.ink} size={17}/>}</View>
+          <View style={{flex:1}}><Text style={s.strong}>{account.name}</Text></View>
+          <Text style={[s.strong, account.balance !== null && account.balance < 0 && {color:colors.danger}]}>{money(account.balance)}</Text>
+        </View>)}
+      </View>)}
+    </Card>
   </ScreenShell>;
 }
 
-function ShockPanel() {
-  const { data, shock, applyShock, clearShock } = useFinanceStore();
-  const active = data.shocks.find(item => item.id === shock);
+function StressTest({ customerId }: { customerId: string }) {
+  const { baseline, baselineError, shock, applyShock, clearShock } = useFinanceStore();
+  const active = shockPresets.find(preset => preset.id === shock);
+  const [test, setTest] = useState<{ id: string; result?: Risk; error?: string } | null>(null);
+  const [funding, setFunding] = useState<{ id: string; result?: FundingPlan; error?: string } | null>(null);
+  useEffect(() => {
+    if (!active) return;
+    const controller = new AbortController();
+    void api<Risk>("/risk/predict", { customer_id: customerId, shock: active.input }, controller.signal).then(
+      result => { if (!controller.signal.aborted) setTest({ id: active.id, result }); },
+      error => { if (!controller.signal.aborted) setTest({ id: active.id, error: error.message }); },
+    );
+    if ("unexpected_expense" in active.input) {
+      void api<FundingPlan>("/risk/funding-plan", { customer_id: customerId, amount: active.input.unexpected_expense }, controller.signal).then(
+        result => { if (!controller.signal.aborted) setFunding({ id: active.id, result }); },
+        error => { if (!controller.signal.aborted) setFunding({ id: active.id, error: error.message }); },
+      );
+    }
+    return () => controller.abort();
+  }, [active, customerId]);
+  const result = active ? (test?.id === active.id ? test.result ?? null : null) : baseline;
+  const error = active ? (test?.id === active.id ? test.error : null) : baselineError;
+  const scenarioByMonth = new Map(result?.monthly.map(row => [row.month, number(row.liquid_balance)]));
+  const chart = (baseline?.monthly ?? result?.monthly ?? []).map(row => ({
+    label: row.month === 0 ? "Now" : displayDate(row.date, {month:"short"}),
+    baseline: baseline ? number(row.liquid_balance) : null,
+    scenario: active ? scenarioByMonth.get(row.month) ?? null : null,
+  }));
+  const hasForecast = chart.slice(1).some(row => row.baseline !== null || row.scenario !== null);
   return <>
+    <Card><View style={s.between}><Eyebrow>FIRST BREAKING POINT</Eyebrow><ShieldCheck size={24} color={colors.sky}/></View>
+      <BigNumber>{forecastRunway(result, error)}</BigNumber><Text style={s.small}>{runwayDetail(result, error)}</Text>
+      {hasForecast ? <>
+        <View style={{marginTop:14}}><Eyebrow>12-MONTH CASH FORECAST</Eyebrow></View>
+        <LineChartWithNodes label="Predict cash forecast chart" data={chart} lines={[
+          {key:"baseline", color:colors.ink},
+          {key:"scenario", color:colors.pink, dashed:true},
+        ]}/>
+        <Text style={s.small}>Dark blue · baseline{active && result ? ` · Pink · ${active.title}` : ""}. Estimated cash balances.</Text>
+      </> : null}
+    </Card>
     <Title eyebrow="HYPOTHETICAL SHOCKS">Where does it bend?</Title>
-    <View style={s.shocks}>{data.shocks.map(item => <Pressable key={item.id} onPress={() => shock === item.id ? clearShock() : applyShock(item.id)} style={[s.shock, shock === item.id && s.shockActive]}>
-      <Wrench size={19} color={colors.ink}/><Text style={s.strong}>{item.title}</Text><Text style={s.serif}>{money(item.amount)}</Text><Text style={s.mini}>{item.detail}</Text>
+    <View style={s.shocks}>{shockPresets.map(preset => <Pressable key={preset.id}
+      onPress={() => { setTest(null); setFunding(null); shock === preset.id ? clearShock() : applyShock(preset.id); }}
+      style={[s.shock, shock === preset.id && s.shockActive]}>
+      <Wrench size={19} color={colors.ink}/><Text style={s.strong}>{preset.title}</Text>
+      <Text style={s.serif}>{preset.amount !== null ? money(preset.amount) : "2 months"}</Text>
+      <Text style={s.mini}>{preset.detail}</Text>
     </Pressable>)}</View>
-    {active && <Animated.View entering={FadeIn} layout={LinearTransition}><Card style={{ marginTop: 18 }}><Eyebrow>FUNDING WATERFALL</Eyebrow><Text style={s.serif}>{money(active.amount)} comes from…</Text>
-      {data.waterfall.map((source, index) => <View key={source.name} style={{ marginTop: 12 }}><View style={s.between}><Text style={s.strong}>{index + 1}. {source.name}</Text><Text style={s.strong}>{money(source.amount)}</Text></View>
-        <View style={s.track}><View style={{ width: `${Math.min(100, source.amount / active.amount * 100)}%`, height: 8, borderRadius: 8, backgroundColor: source.color }}/></View><Text style={s.mini}>{source.cost}</Text></View>)}
-      <Text style={s.small}>All costs and timing are estimated.</Text></Card></Animated.View>}
+    {active?.id === "repair" && <Animated.View entering={FadeIn} layout={LinearTransition}><Card style={{marginTop:18}}>
+      <Eyebrow>FUNDING WATERFALL</Eyebrow>
+      {funding?.result ? <>
+        {funding.result.sources.map(source => <View key={source.account_id} style={{marginTop:12}}>
+          <View style={s.between}><Text style={s.strong}>{source.name}</Text><Text style={s.strong}>{money(source.amount)}</Text></View>
+          <View style={s.track}><View style={{height:8, borderRadius:8, backgroundColor:colors.sky,
+            width:`${(number(source.amount) ?? 0) / (number(funding.result?.amount) || 1) * 100}%`}}/></View>
+        </View>)}
+        <Text style={s.small}>Uncovered by known balances: {money(funding.result.uncovered_amount)}.</Text>
+        {funding.result.unknown_balance_count > 0 && <Text style={s.small}>Some liquid account balances are unavailable.</Text>}
+        <Text style={s.small}>Illustrative checking-first allocation. No funds move.</Text>
+      </> : <Text style={s.small}>{funding?.error ?? "Checking available Nessie balances…"}</Text>}
+    </Card></Animated.View>}
+    {active && <ScenarioResponse key={active.id} customerId={customerId}
+      trigger={{ label: active.title, shock: active.input }}/>}
   </>;
 }
 
-function SimulationPanel() {
-  const { data, sim, setSim } = useFinanceStore();
-  const plans = data.simulate.plans;
-  const chart = plans[0].points.map((point, index) => Object.fromEntries([["label", point.label], ...plans.map(plan => [plan.name,
-    Math.round((plan.points[index].value ?? 0) * (sim.monthly / data.simulate.monthly) * (1 + (sim.rate - data.simulate.rate) / 100 * index / 5))])])) as Record<string, unknown>[];
-  return <><Card><View style={s.between}><View><Eyebrow>LONG-RUN BALANCE</Eyebrow><Text style={s.serif}>Three paths, one horizon.</Text></View><Badge>Estimated</Badge></View>
-    <BalanceAreaChart data={chart} plans={plans}/><Text style={s.small}>{plans.map(plan => plan.name).join(" · ")}</Text></Card>
-    <Card style={{ marginTop: 16 }}><ChunkySlider label="Monthly amount" value={sim.monthly} min={100} max={1800} step={50} suffix=" / mo" onChange={value => setSim("monthly", value)}/>
+const savingsPlans = [{name:"Baseline",color:"#94A3B8"},{name:"Save more",color:colors.sky}];
+
+function SavingsSimulation({ customerId, savings }: { customerId: string; savings: Account | undefined }) {
+  const { sim, setSim } = useFinanceStore();
+  const savingsId = savings?.id;
+  const key = `${customerId}:${savingsId}:${sim.monthly}:${sim.years}:${sim.rate}`;
+  const [run, setRun] = useState<{ key: string; data?: Simulation; error?: string } | null>(null);
+  useEffect(() => {
+    if (!savingsId) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      void api<Simulation>("/simulate", {
+        customer_id: customerId, horizon_months: sim.years * 12,
+        assumptions: { account_rates: { [savingsId]: { apy: (sim.rate / 100).toFixed(4) } } },
+        decision: { savings_account_id: savingsId, extra_monthly_savings: sim.monthly },
+      }, controller.signal).then(
+        data => { if (!controller.signal.aborted) setRun({ key, data }); },
+        error => { if (!controller.signal.aborted) setRun({ key, error: error.message }); },
+      );
+    }, 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [customerId, savingsId, key, sim.monthly, sim.years, sim.rate]);
+  const result = run?.key === key ? run : null;
+  const chart = result?.data?.baseline_projection.monthly.flatMap((row, index) => row.month % 12 === 0
+    ? [{ label: row.month ? `${row.month / 12}y` : "Now", Baseline: number(row.liquid_balance),
+      "Save more": number(result.data?.scenario_projection.monthly[index]?.liquid_balance) }] : []) ?? [];
+  const hasForecast = chart.slice(1).some(row => row.Baseline !== null || row["Save more"] !== null);
+  const message = !savingsId ? "A Nessie savings account with a known balance is needed." :
+    result?.error ?? result?.data?.scenario_projection.missing_requirements[0] ??
+    (result ? null : "Calculating savings paths…");
+  return <>
+    <Card><View style={s.between}><View><Eyebrow>LONG-RUN LIQUID BALANCE</Eyebrow>
+      <Text style={s.serif}>Two paths, one horizon.</Text></View><Badge>Estimated</Badge>
+    </View>{hasForecast && <><BalanceAreaChart data={chart} plans={savingsPlans}/><Text style={s.small}>Baseline · Save more</Text></>}
+      {message && <Text style={s.sub}>{message}</Text>}
+      {savings && <Text style={s.small}>The selected APY applies to both paths for {savings.nickname || "your savings account"}.</Text>}
+    </Card>
+    <Card style={{marginTop:16}}>
+      <ChunkySlider label="Monthly savings amount" value={sim.monthly} min={100} max={1800} step={50} suffix=" / mo" onChange={value => setSim("monthly", value)}/>
       <ChunkySlider label="Years" value={sim.years} min={2} max={20} suffix=" yr" onChange={value => setSim("years", value)}/>
-      <ChunkySlider label="Estimated return" value={sim.rate} min={2} max={12} step={.5} suffix="%" onChange={value => setSim("rate", value)}/></Card><Advice/></>;
+      <ChunkySlider label="Assumed savings APY" value={sim.rate} min={2} max={12} step={.5} suffix="%" onChange={value => setSim("rate", value)}/>
+    </Card><Advice/>
+  </>;
 }
 
 export function PredictScreen() {
-  const { predictMode, setPredictMode } = useFinanceStore();
-  return <ScreenShell><ScreenIntro eyebrow="LOOK AHEAD" title="Make uncertainty" accent="useful." sub="Stress test today, or sketch a longer tomorrow."/>
-    <SegmentedPill options={["shocks", "simulate"] as const} value={predictMode} onChange={setPredictMode}/>
-    {predictMode === "shocks" ? <ShockPanel/> : <SimulationPanel/>}</ScreenShell>;
+  const { dashboard, predictMode, setPredictMode } = useFinanceStore();
+  if (!dashboard) return <ScreenShell/>;
+  const savings = dashboard.accounts.find(account => account.type.toLowerCase() === "savings" && number(account.balance) !== null);
+  return <ScreenShell>
+    <ScreenIntro eyebrow="LOOK AHEAD" title="Make uncertainty" accent="useful." sub="Stress test today, or sketch a longer tomorrow."/>
+    <SegmentedPill options={["shocks","simulate"] as const} value={predictMode} onChange={setPredictMode}/>
+    {predictMode === "shocks" ? <StressTest customerId={dashboard.customer.id}/> :
+      <SavingsSimulation customerId={dashboard.customer.id} savings={savings}/>}
+  </ScreenShell>;
 }
 
 export function GoalsScreen() {
-  const { data, selectGoal } = useFinanceStore();
-  return <ScreenShell><ScreenIntro eyebrow="GROW WITH INTENTION" title="Goals with" accent="roots." sub="Every contribution helps something take shape."/>
-    {data.goals.map(goal => <Pressable key={goal.id} onPress={() => selectGoal(goal.id)}><Card style={{ marginBottom: 13 }}><View style={s.row}>
-      <View style={{ flex: 1 }}><Eyebrow>ETA · {goal.eta}</Eyebrow><Text style={s.serif}>{goal.title}</Text><Text style={s.small}>{money(goal.saved)} of {money(goal.target)}</Text></View>
-      <Sapling goal={goal} compact onPress={() => selectGoal(goal.id)}/><ProgressRing progress={goal.growth}/></View></Card></Pressable>)}<Advice/>
+  const { dashboard, baseline, selectGoal } = useFinanceStore();
+  const goals = goalViews(dashboard, baseline);
+  const [adding, setAdding] = useState(false);
+  return <ScreenShell>
+    <ScreenIntro eyebrow="GROW WITH INTENTION" title="Goals with" accent="roots."/>
+    {dashboard && (adding ? <GoalEditor dashboard={dashboard} onSaved={() => setAdding(false)} onCancel={() => setAdding(false)}/> :
+      <Button3D onClick={() => setAdding(true)}>Add goal</Button3D>)}
+    {goals.length === 0 && <Card><Text style={s.sub}>No saved goals for this customer.</Text></Card>}
+    {goals.map(goal => {
+      const percent = goal.growth === null ? null : Math.round(goal.growth * 100);
+      const progress = Math.max(0, Math.min(100, percent ?? 0));
+      return <Pressable key={goal.id} onPress={() => selectGoal(goal.id)}><Card style={{marginBottom:13}}>
+        <View style={s.row}><View style={{flex:1}}><Eyebrow>ETA · {goal.eta}</Eyebrow><Text style={s.serif}>{goal.title}</Text>
+          <Text style={s.small}>{money(goal.saved)} of {money(goal.target)}</Text>
+          <View style={s.track}><View style={{width:`${progress}%`,height:8,borderRadius:8,backgroundColor:colors.pink}}/></View>
+          <Badge tone={progress > 60 ? "green" : "blue"}>{percent === null ? "Progress unavailable" : `${percent}% grown`}</Badge>
+        </View><Sapling goal={goal} compact onPress={() => selectGoal(goal.id)}/>{goal.growth !== null && <ProgressRing progress={goal.growth}/>}</View>
+      </Card></Pressable>;
+    })}<Advice/>
   </ScreenShell>;
 }
 
-export function ImpactScreen() {
-  const { data } = useFinanceStore();
-  const params = useLocalSearchParams<{ headline?: string }>();
-  const [headline, setHeadline] = useState(params.headline ?? data.impact.active);
-  const [input, setInput] = useState("");
-  return <ScreenShell><ScreenIntro eyebrow="HEADLINE IMPACT" title="News, translated to" accent="you." sub="A plain-language estimate—not a prediction."/>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 14 }}>{data.impact.headlines.map(item => <Pressable key={item} onPress={() => setHeadline(item)}><Badge tone={headline === item ? "pink" : "blue"}>{item}</Badge></Pressable>)}</ScrollView>
-    <Card><Eyebrow>PASTE A HEADLINE</Eyebrow><View style={[s.row, { marginTop: 10 }]}><TextInput accessibilityLabel="Paste a headline" value={input} onChangeText={setInput} placeholder="Paste a headline…" style={s.input}/>
-      <Button3D ariaLabel="Use headline" onClick={() => input.trim() && setHeadline(input.trim())}><Sparkles color="white"/></Button3D></View></Card>
-    <Title eyebrow="WHAT THIS MEANS FOR YOU">Small shifts, shown honestly.</Title><Card>{data.impact.rows.map(row => <View key={row.label} style={s.impact}>
-      <View style={{ flex: 1 }}><Text style={s.strong}>{row.label}</Text><Text style={s.mini}>{row.range}</Text></View><Text style={s.small}>{row.before}</Text><ArrowRight size={14} color={colors.muted}/><Text style={s.strong}>{row.after}</Text>
-    </View>)}</Card><Card style={{ marginTop: 16 }}><View style={s.row}><TrendingUp color={colors.ink}/><Text style={[s.small, { flex: 1 }]}>These ranges are estimates based on the selected demo headline: {headline}.</Text></View></Card><Advice/>
+function impactRows(result: HeadlineAnalysis, accounts: Account[]) {
+  const rows: { label: string; before: string; after: string; detail: string }[] = [];
+  const percent = new Intl.NumberFormat("en-US", { style:"percent", maximumFractionDigits:3 });
+  for (const item of result.affected_accounts) {
+    const before = number(item.assumed_baseline_apy ?? item.assumed_baseline_apr);
+    const after = number(item.adjusted_apy ?? item.adjusted_apr);
+    const account = accounts.find(account => account.id === item.account_id);
+    if (before !== null && after !== null) rows.push({ label: account?.nickname || account?.type || item.account_id,
+      before: percent.format(before), after: percent.format(after), detail: item.exposure === "variable_savings" ? "Modeled APY" : "Modeled APR" });
+  }
+  for (const goal of result.goal_changes) {
+    if (goal.baseline.completion_date !== goal.scenario.completion_date) rows.push({ label: goal.baseline.name,
+      before: displayDate(goal.baseline.completion_date), after: displayDate(goal.scenario.completion_date), detail: "Estimated completion" });
+  }
+  const before = number(result.baseline_projection.monthly.at(-1)?.liquid_balance);
+  const after = number(result.scenario_projection.monthly.at(-1)?.liquid_balance);
+  if (before !== null && after !== null && before !== after) {
+    rows.push({ label:"Liquid balance", before:money(before), after:money(after), detail:"End of projection" });
+  }
+  const spending = number(result.financial_impacts.find(item => item.metric === "monthly_spending_exposure")?.change);
+  if (spending !== null && spending !== 0) rows.push({ label:"Monthly spending", before:"Baseline",
+    after:`${spending > 0 ? "+" : ""}${money(spending)}`, detail:"Modeled change" });
+  return rows;
+}
+
+export function ImpactScreen({ header }: { header: ReactNode }) {
+  const dashboard = useFinanceStore(state => state.dashboard);
+  const { headline } = useLocalSearchParams<{ headline?: string }>();
+  const initialHeadline = typeof headline === "string" ? headline.slice(0,500) : "";
+  const [input, setInput] = useState(initialHeadline);
+  const [query, setQuery] = useState<{ text: string } | null>(initialHeadline ? {text:initialHeadline} : null);
+  const [response, setResponse] = useState<{ customerId: string; query: typeof query; data?: HeadlineAnalysis; error?: string } | null>(null);
+  const customerId = dashboard?.customer.id;
+  useEffect(() => {
+    if (!initialHeadline) return;
+    setInput(initialHeadline);
+    setQuery(previous => previous?.text === initialHeadline ? previous : {text:initialHeadline});
+  }, [initialHeadline]);
+  useEffect(() => {
+    if (!query || !customerId) return;
+    const controller = new AbortController();
+    void api<HeadlineAnalysis>("/headlines/analyze", { customer_id: customerId, headline: query.text }, controller.signal).then(
+      data => { if (!controller.signal.aborted) setResponse({ customerId, query, data }); },
+      error => { if (!controller.signal.aborted) setResponse({ customerId, query, error: error.message }); },
+    );
+    return () => controller.abort();
+  }, [customerId, query]);
+
+  const matching = response && response.customerId === customerId && response.query === query ? response : null;
+  const result = matching?.data;
+  const rows = result ? impactRows(result, dashboard?.accounts ?? []) : [];
+  const pending = query !== null && matching === null;
+  const requirement = result?.scenario_projection.missing_requirements.find(
+    item => !result.baseline_projection.missing_requirements.includes(item),
+  );
+  const explanation = requirement ?? result?.exposure_explanations[0] ?? result?.event.explanation;
+  function submit() {
+    const text = input.trim();
+    if (text && !pending) setQuery({ text });
+  }
+  return <ScreenShell header={header}>
+    <ScreenIntro eyebrow="HEADLINE IMPACT" title="News, translated to" accent="you." sub="See how a headline could affect your finances."/>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:6,marginBottom:14}}>
+      {headlineExamples.map(text => <Pressable key={text} onPress={() => { setInput(text); setQuery({text}); }}>
+        <Badge tone={query?.text === text ? "pink" : "blue"}>{text}</Badge>
+      </Pressable>)}
+    </ScrollView>
+    <Card><Eyebrow>PASTE A HEADLINE</Eyebrow><View style={[s.row,{marginTop:10}]}>
+      <TextInput accessibilityLabel="Paste a headline" placeholder="Paste a headline…" placeholderTextColor={colors.muted}
+        style={s.input} maxLength={500} value={input} onChangeText={setInput} onSubmitEditing={submit}/>
+      <View style={{width:50}}><Button3D ariaLabel="Analyze headline" disabled={!input.trim()} loading={pending} onClick={submit}>
+        <Sparkles color="white" size={18}/>
+      </Button3D></View>
+    </View></Card>
+    <Title eyebrow="WHAT THIS MEANS FOR YOU">Small shifts, shown honestly.</Title>
+    <Card>{rows.length === 0 && <Text style={s.sub}>{matching?.error ?? (pending ? "Analyzing headline…" :
+      result ? "No account or goal changes could be quantified." : "Enter or select a headline.")}</Text>}
+      {rows.map((row, index) => <View key={`${row.label}-${index}`} style={s.impact}>
+        <View style={{flex:1}}><Text style={s.strong}>{row.label}</Text><Text style={s.mini}>{row.detail}</Text></View>
+        <Text style={s.mini}>{row.before}</Text><ArrowRight size={13} color={colors.muted}/><Text style={s.strong}>{row.after}</Text>
+      </View>)}
+    </Card>
+    {explanation && <Card style={{marginTop:16}}><View style={s.row}><TrendingUp color={colors.pink}/><View style={{flex:1}}>
+      <Text style={s.serif}>What the model found</Text><Text style={s.small}>{explanation}</Text>
+    </View></View></Card>}
+    {result && query && customerId && (result.headline_exposure_status === "modeled" || result.event.type === "gas_prices") &&
+      <ScenarioResponse key={query.text} customerId={customerId}
+        trigger={{ label: query.text, headline: query.text, acceptsFuelSensitivity: result.event.type === "gas_prices" }}/>}
+    <Advice/>
   </ScreenShell>;
 }
 
-function Title({ eyebrow, children }: { eyebrow: string; children: ReactNode }) { return <View style={{ marginTop: 24, marginBottom: 10 }}><Eyebrow>{eyebrow}</Eyebrow><Text style={s.title}>{children}</Text></View>; }
+function Title({ eyebrow, children }: { eyebrow: string; children: ReactNode }) {
+  return <View style={{marginTop:25,marginBottom:12}}><Eyebrow>{eyebrow}</Eyebrow><Text style={s.title}>{children}</Text></View>;
+}
+
 function Advice() { return <Text style={s.advice}>Informational, not financial advice.</Text>; }
 
 const s = StyleSheet.create({
   screen: { paddingHorizontal: 16 }, standaloneHeader: { position: "absolute", left: 16, zIndex: 2 },
   between: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }, row: { flexDirection: "row", alignItems: "center", gap: 12 },
+  link: { minHeight: 44, flexDirection: "row", gap: 7, alignItems: "center" },
+  linkText: { fontFamily: "Inter_700Bold", fontSize: 12, color: colors.ink },
   sub: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21, color: colors.muted, marginTop: 8 }, title: { fontFamily: "Fraunces_600SemiBold", fontSize: 27, color: colors.ink, marginTop: 4 },
   serif: { fontFamily: "Fraunces_600SemiBold", fontSize: 21, color: colors.ink, marginVertical: 5 }, strong: { fontFamily: "Inter_700Bold", fontSize: 12, color: colors.ink }, small: { fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 16, color: colors.muted }, mini: { fontFamily: "Inter_400Regular", fontSize: 9, color: colors.muted, letterSpacing: .4 },
   ring: { width: 62, height: 62, alignItems: "center", justifyContent: "center" }, ringText: { position: "absolute", fontFamily: "Inter_700Bold", fontSize: 11, color: colors.ink },

@@ -16,6 +16,8 @@ class Shock(AssumptionModel):
     unexpected_expense: Money = Decimal(0)
     expense_month: int = Field(default=1, ge=1, le=360)
     cost_of_living_increase: Fraction = Decimal(0)
+    monthly_spending_increase: Money = Decimal(0)
+    monthly_spending_increase_months: int | None = Field(default=None, ge=1, le=360)
     rate_increase_bps: int = Field(default=0, ge=0, le=20000)
 
 
@@ -77,4 +79,9 @@ class TransferRequest(AssumptionModel):
     customer_id: ResourceID | None = None
     from_account_id: ResourceID
     to_account_id: ResourceID
+    amount: PositiveMoney
+
+
+class FundingPlanRequest(AssumptionModel):
+    customer_id: ResourceID | None = None
     amount: PositiveMoney

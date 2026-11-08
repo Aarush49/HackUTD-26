@@ -283,8 +283,11 @@ def project(
             scenario_income = cents(income * (1 - manual) * (1 - headline))
         scenario_spending = spending
         if spending is not None:
+            increase = shock.monthly_spending_increase if (
+                shock.monthly_spending_increase_months is None or month <= shock.monthly_spending_increase_months
+            ) else ZERO
             scenario_spending = cents(max(ZERO, spending * (1 + shock.cost_of_living_increase)
-                                          + impact.spending_delta - decision.monthly_spending_reduction))
+                                          + impact.spending_delta + increase - decision.monthly_spending_reduction))
         one_off = shock.unexpected_expense if month == shock.expense_month else ZERO
         window_start, window_end = month_date(start, month - 1), month_date(start, month)
         for bill in profile.bills:

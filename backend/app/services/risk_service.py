@@ -9,7 +9,7 @@ def predict_risk(profile, goals, request):
         drivers.append("Hypothetical income reduction")
     if request.shock.unexpected_expense:
         drivers.append("One-time unexpected expense")
-    if request.shock.cost_of_living_increase:
+    if request.shock.cost_of_living_increase or request.shock.monthly_spending_increase:
         drivers.append("Higher recurring spending")
     if request.shock.rate_increase_bps:
         drivers.append("Higher modeled variable debt APR")

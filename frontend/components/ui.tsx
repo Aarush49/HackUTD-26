@@ -1,4 +1,4 @@
-import{ReactNode}from"react";import{ActivityIndicator,Pressable,StyleProp,StyleSheet as NativeStyleSheet,Text,View,ViewStyle,useWindowDimensions}from"react-native";import{BlurView}from"expo-blur";import Animated,{FadeIn}from"react-native-reanimated";import Svg,{Circle,Path,Polyline,Text as SvgText}from"react-native-svg";import{colors,radii}from"@/lib/theme";
+import{ReactNode}from"react";import{ActivityIndicator,Pressable,StyleProp,StyleSheet as NativeStyleSheet,Text,View,ViewStyle}from"react-native";import{BlurView}from"expo-blur";import Animated,{FadeIn}from"react-native-reanimated";import Svg,{Circle,Path,Polyline,Text as SvgText}from"react-native-svg";import{colors,radii}from"@/lib/theme";
 const StyleSheet:any=NativeStyleSheet;
 const ReactNodeFragment=({children}:{children:ReactNode})=><>{children}</>;
 export function Card({children,onClick,style}:{children:ReactNode;className?:string;onClick?:()=>void;style?:StyleProp<ViewStyle>}){const body=<BlurView intensity={28} tint="light" style={[s.card,style]}><View style={s.cardOverlay}/><View style={{zIndex:1}}>{children}</View></BlurView>;return onClick?<Pressable onPress={onClick} style={({pressed})=>({transform:[{scale:pressed?.99:1}]})}>{body}</Pressable>:body}
@@ -7,51 +7,77 @@ export function Badge({children,tone="blue"}:{children:ReactNode;tone?:"blue"|"p
 export function Button3D({children,onClick,disabled=false,loading=false,tone="pink",ariaLabel}:{children:ReactNode;onClick?:()=>void;className?:string;ariaLabel?:string;disabled?:boolean;loading?:boolean;tone?:"pink"|"sky"|"white"}){const bg=tone==="pink"?colors.pink:tone==="sky"?colors.sky:"#FFFFFF",edge=tone==="pink"?"#BD155F":tone==="sky"?"#1488B8":"#C9DCE5";return <Pressable accessibilityRole="button" accessibilityLabel={ariaLabel} disabled={disabled||loading} onPress={onClick} style={({pressed})=>[s.button,{backgroundColor:bg,borderBottomColor:edge,opacity:disabled?.5:1,transform:[{translateY:pressed?3:0}]}]}>{loading?<ActivityIndicator color={tone==="white"?colors.ink:"white"}/>:typeof children==="string"?<Text style={[s.buttonText,{color:tone==="white"?colors.ink:"white"}]}>{children}</Text>:children}</Pressable>}
 export function SegmentedPill<T extends string>({options,value,onChange}:{options:readonly T[];value:T;onChange:(v:T)=>void}){return <View style={s.segment}>{options.map(o=><Pressable key={o} onPress={()=>onChange(o)} style={[s.segmentItem,value===o&&s.segmentActive]}><Text style={s.segmentText}>{o}</Text></Pressable>)}</View>}
 export function StatTile({label,value,tone="blue"}:{label:string;value:string;tone?:string}){return <View style={[s.stat,{backgroundColor:tone==="green"?"#E2F7EA":tone==="amber"?"#FFF2D8":colors.pale}]}><Eyebrow>{label}</Eyebrow><Text style={s.statValue}>{value}</Text></View>}
-export function TrustTag(){return <View style={s.trust}><View style={s.dot}/><Text style={s.trustText}>Synthetic demo data</Text></View>};export function Heading({children,accent}:{children:ReactNode;accent:string}){return <View><Text style={s.heading}>{children}</Text><Text style={s.accent}>{accent}</Text></View>}
+export function TrustTag(){return <View style={s.trust}><View style={s.dot}/><Text style={s.trustText}>Nessie sandbox</Text></View>};export function Heading({children,accent}:{children:ReactNode;accent:string}){return <View><Text style={s.heading}>{children}</Text><Text style={s.accent}>{accent}</Text></View>}
 type ChartLine = { key: string; color: string; dashed?: boolean };
+const chartCurrency = new Intl.NumberFormat("en-US", {
+  style:"currency", currency:"USD", notation:"compact", maximumFractionDigits:1,
+});
 
-export function LineChartWithNodes({ data, lines, height=210 }: {
-  data: Record<string, unknown>[]; lines: ChartLine[]; height?: number;
+function chartSegments(data: Record<string, unknown>[], key: string) {
+  const segments: { index: number; value: number }[][] = [];
+  let segment: { index: number; value: number }[] = [];
+  data.forEach((row, index) => {
+    const value = row[key];
+    if (typeof value === "number" && Number.isFinite(value)) segment.push({index,value});
+    else if (segment.length) { segments.push(segment); segment = []; }
+  });
+  if (segment.length) segments.push(segment);
+  return segments;
+}
+
+export function LineChartWithNodes({ data, lines, label, height=210 }: {
+  data: Record<string, unknown>[]; lines: ChartLine[]; label: string; height?: number;
 }) {
-  const { width } = useWindowDimensions();
-  const w = Math.max(60, Math.min(width - 68, 330)), pad = 18;
+  const w = 350, left = 42, right = 18, top = 16, bottom = 26;
   const values = data.flatMap(row => lines.map(line => row[line.key]))
     .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   if (!values.length) return null;
   const min = Math.min(...values), max = Math.max(...values);
-  const x = (index: number) => data.length === 1 ? w / 2 : pad + index * (w - pad * 2) / (data.length - 1);
-  const y = (value: number) => min === max ? height / 2 : height - pad - (value - min) / (max - min) * (height - pad * 2);
-  return <Svg width={w} height={height} accessibilityLabel="Estimated balance trend">
+  const x = (index: number) => data.length === 1 ? (left + w - right) / 2 : left + index * (w - left - right) / (data.length - 1);
+  const y = (value: number) => min === max ? height / 2 : height - bottom - (value - min) * (height - top - bottom) / (max - min);
+  const ticks = min === max ? [min] : [max, (max + min) / 2, min];
+  return <View accessible accessibilityRole="image" accessibilityLabel={label}>
+    <Svg width="100%" height={height} viewBox={`0 0 ${w} ${height}`}>
+    {ticks.map(value => <ReactNodeFragment key={value}>
+      <Path d={`M ${left} ${y(value)} H ${w - right}`} stroke="rgba(11,58,91,.12)" strokeWidth={1}/>
+      <SvgText x={left - 6} y={y(value) + 3} fill={colors.muted} fontSize={9} textAnchor="end">
+        {chartCurrency.format(value)}
+      </SvgText>
+    </ReactNodeFragment>)}
     {lines.map(line => {
-      const segments: { index: number; value: number }[][] = [];
-      let segment: { index: number; value: number }[] = [];
-      data.forEach((row, index) => {
-        const value = row[line.key];
-        if (typeof value === "number" && Number.isFinite(value)) segment.push({index,value});
-        else if (segment.length) { segments.push(segment); segment = []; }
-      });
-      if (segment.length) segments.push(segment);
-      return segments.map(points => <ReactNodeFragment key={`${line.key}-${points[0].index}`}>
+      return chartSegments(data, line.key).map(points => <ReactNodeFragment key={`${line.key}-${points[0].index}`}>
         {points.length > 1 && <Polyline points={points.map(point => `${x(point.index)},${y(point.value)}`).join(" ")}
           fill="none" stroke={line.color} strokeWidth={3} strokeDasharray={line.dashed ? "3 7" : undefined}/>}
         {points.map((point, pointIndex) => <Circle key={point.index} cx={x(point.index)} cy={y(point.value)} r={4.5}
           fill={line.dashed && pointIndex === points.length - 1 ? colors.pink : "white"} stroke={line.color} strokeWidth={2.5}/>)}</ReactNodeFragment>);
     })}
     {data.map((row, index) => (index === 0 || index === data.length - 1 || index % Math.ceil(data.length / 6) === 0) &&
-      <SvgText key={index} x={x(index)} y={height-2} fill={colors.muted} fontSize={9} textAnchor="middle">{String(row.label)}</SvgText>)}
-  </Svg>;
+      <SvgText key={index} x={x(index)} y={height - 6} fill={colors.muted} fontSize={9} textAnchor="middle">{String(row.label)}</SvgText>)}
+    </Svg>
+  </View>;
 }
 
 export function BalanceAreaChart({ plans, data }: { plans: {name:string;color:string}[]; data: Record<string,unknown>[] }) {
   const w=330,h=230,left=38,right=12,top=14,bottom=28;
-  const values=data.flatMap(row=>plans.map(plan=>Number(row[plan.name])||0));
-  const min=Math.min(...values),max=Math.max(...values);
-  const x=(index:number)=>left+index*(w-left-right)/(data.length-1);
+  const values=data.flatMap(row=>plans.map(plan=>row[plan.name]));
+  const known = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  if (!known.length) return null;
+  const min=Math.min(...known),max=Math.max(...known);
+  const x=(index:number)=>data.length === 1 ? w / 2 : left+index*(w-left-right)/(data.length-1);
   const y=(value:number)=>top+(max-value)/(max-min||1)*(h-top-bottom);
   const animationKey=data.map(row=>plans.map(plan=>row[plan.name]).join("-")).join("|");
-  return <Animated.View key={animationKey} entering={FadeIn.duration(350)}><Svg width="100%" viewBox={`0 0 ${w} ${h}`}>
-    {[0,.5,1].map((ratio,index)=>{const gridY=top+ratio*(h-top-bottom),value=Math.round(max-ratio*(max-min));return <ReactNodeFragment key={index}><Path d={`M ${left} ${gridY} H ${w-right}`} stroke="rgba(11,58,91,.08)" strokeWidth="1"/><SvgText x={left-5} y={gridY+3} fill={colors.muted} fontSize="8" textAnchor="end">{`$${Math.round(value/1000)}k`}</SvgText></ReactNodeFragment>;})}
-    {plans.map((plan,index)=>{const points=data.map((row,rowIndex)=>[x(rowIndex),y(Number(row[plan.name])||0)] as const),dotted=index===plans.length-1;return <ReactNodeFragment key={plan.name}><Polyline points={points.map(point=>point.join(",")).join(" ")} fill="none" stroke={plan.color} strokeWidth="3" strokeDasharray={dotted?"3 7":undefined}/>{points.map(([cx,cy],pointIndex)=><Circle key={pointIndex} cx={cx} cy={cy} r="4.5" fill={dotted&&pointIndex===points.length-1?colors.pink:"white"} stroke={plan.color} strokeWidth="2.5"/>)}</ReactNodeFragment>;})}
+  return <Animated.View key={animationKey} entering={FadeIn.duration(350)} accessible accessibilityRole="image"
+    accessibilityLabel="Predict savings simulation chart"><Svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`}>
+    {[0,.5,1].map((ratio,index)=>{const gridY=top+ratio*(h-top-bottom),value=Math.round(max-ratio*(max-min));return <ReactNodeFragment key={index}><Path d={`M ${left} ${gridY} H ${w-right}`} stroke="rgba(11,58,91,.08)" strokeWidth="1"/><SvgText x={left-5} y={gridY+3} fill={colors.muted} fontSize="8" textAnchor="end">{chartCurrency.format(value)}</SvgText></ReactNodeFragment>;})}
+    {plans.map((plan,index) => chartSegments(data, plan.name).map(points => {
+      const dotted = index === plans.length - 1;
+      return <ReactNodeFragment key={`${plan.name}-${points[0].index}`}>
+        {points.length > 1 && <Polyline points={points.map(point => `${x(point.index)},${y(point.value)}`).join(" ")}
+          fill="none" stroke={plan.color} strokeWidth={3} strokeDasharray={dotted ? "3 7" : undefined}/>}
+        {points.map(point => <Circle key={point.index} cx={x(point.index)} cy={y(point.value)} r="4.5"
+          fill="white" stroke={plan.color} strokeWidth="2.5"/>)}
+      </ReactNodeFragment>;
+    }))}
     {data.map((row,index)=><SvgText key={index} x={x(index)} y={h-7} fill={colors.muted} fontSize="9" textAnchor="middle">{String(row.label)}</SvgText>)}
   </Svg></Animated.View>;
 }

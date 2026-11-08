@@ -12,10 +12,11 @@ Start FastAPI from `backend` with `python -m uvicorn app.main:app --reload --hos
 
 ```env
 EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
-EXPO_PUBLIC_NESSIE_CUSTOMER_ID=your-sandbox-customer-id
 ```
 
 The app automatically detects when running on a mobile device or other client and resolves loopback (`127.0.0.1` / `localhost`) to the host machine's LAN IP address from Metro, while preserving loopback on the local device. Ensure FastAPI is started with `--host 0.0.0.0` so connections from both the local device and mobile devices are accepted. Keep the Nessie API key in the backend environment. Reload Expo after changing the customer ID.
+
+Canopy uses an accessible backend default or lets the user choose a customer. `EXPO_PUBLIC_NESSIE_CUSTOMER_ID` is an optional build-time override.
 
 The app uses only Expo Go-compatible libraries; no custom native build or Skia is required.
 

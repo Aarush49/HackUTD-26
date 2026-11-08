@@ -3,16 +3,18 @@ import { Platform } from "react-native";
 
 type Money = string | number | null;
 
-type Customer = { id: string; first_name: string | null };
+export type Customer = { id: string; first_name: string | null; last_name: string | null };
+export type CustomerOptions = { customers: Customer[]; default_customer_id: string | null };
 export type Account = { id: string; type: string; nickname: string | null; balance: Money };
 type Debt = { id: string; kind: string; balance: Money };
-type Goal = {
+export type Goal = {
   id: string;
   name: string;
   target_amount: Money;
   target_date: string | null;
   funding_account_id: string | null;
   initial_funded_amount: Money;
+  monthly_contribution: Money;
 };
 type Bill = {
   id: string;
@@ -29,6 +31,7 @@ export type Dashboard = {
   debts: Debt[];
   goals: Goal[];
   bills: Bill[];
+  transaction_activity: { date: string; inflow: Money; outflow: Money }[];
   known_account_net_worth: Money;
   liquid_reserves: Money;
   data_completeness: { retrieved_at: string };
@@ -40,6 +43,7 @@ type Month = {
   month: number;
   date: string;
   liquid_balance: Money;
+  liquidity_shortfall: Money;
   known_account_net_worth: Money;
   interest_paid: Money;
 };
@@ -96,6 +100,25 @@ export type Product = {
   name: string;
   advantage: string;
   risk: string;
+};
+
+export type FundingPlan = {
+  amount: Money;
+  sources: { account_id: string; name: string; amount: Money }[];
+  uncovered_amount: Money;
+  unknown_balance_count: number;
+};
+
+export type ProductComparison = {
+  comparison_basis: string;
+  options: {
+    option: "take_action" | "do_nothing" | "wait";
+    start_month: number | null;
+    estimated_effects: { ending_known_account_net_worth: Money };
+    minimum_modeled_liquidity: Money;
+    risks: string[];
+    projection: Projection;
+  }[];
 };
 
 function getHostFromUri(uri?: string | null): string | null {
@@ -182,12 +205,12 @@ export function getApiOrigin(): string {
 
 export const apiOrigin = getApiOrigin();
 
-export async function api<T>(path: string, body?: object, signal?: AbortSignal): Promise<T> {
+export async function api<T>(path: string, body?: object, signal?: AbortSignal, method = body ? "POST" : "GET"): Promise<T> {
   const origin = getApiOrigin();
   let response: Response;
   try {
     response = await fetch(`${origin}/api${path}`, {
-      method: body ? "POST" : "GET",
+      method,
       headers: body ? { "Content-Type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
       signal,
@@ -204,16 +227,6 @@ export async function api<T>(path: string, body?: object, signal?: AbortSignal):
     );
   }
   return response.json();
-}
-
-export async function resolveCustomerId(): Promise<string> {
-  const configured = process.env.EXPO_PUBLIC_NESSIE_CUSTOMER_ID?.trim();
-  if (configured) return configured;
-  const customers = await api<Customer[]>("/customers");
-  if (customers.length === 1) return customers[0].id;
-  throw new Error(customers.length
-    ? "Set EXPO_PUBLIC_NESSIE_CUSTOMER_ID to choose a sandbox customer."
-    : "Nessie returned no customers for the configured key.");
 }
 
 export function number(value: Money | undefined): number | null {

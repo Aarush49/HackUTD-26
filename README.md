@@ -67,10 +67,13 @@ Create `backend/.env`:
 NESSIE_API_KEY=your-nessie-sandbox-key
 NESSIE_BASE_URL=https://prod-api.nessieisreal.com
 NESSIE_CUSTOMER_ID=
-DATABASE_URL=sqlite:///./financial_navigator.db
+MONGO_URI=mongodb://localhost:27017
+MONGO_DB_NAME=financial_navigator
 ```
 
 `NESSIE_CUSTOMER_ID` may be left blank while discovering customers. Never put the Nessie API key in the Expo environment—the backend is the only layer that should hold it.
+
+For a local demo without MongoDB, use `MONGO_URI=memory://`. Goals and saved scenarios then reset when the backend restarts.
 
 Start FastAPI:
 
@@ -84,7 +87,7 @@ Useful local URLs:
 - Swagger UI: `http://127.0.0.1:8000/docs`
 - Customer list: `http://127.0.0.1:8000/api/customers`
 
-Choose a customer returned by `/api/customers`. You can set that ID in both backend and frontend configuration, then restart the affected process.
+Canopy uses the backend's `NESSIE_CUSTOMER_ID` when it is available to the configured key. It can also select the only available customer or offer a picker in the app. Set the Expo override only when you want a different default for a particular build.
 
 ## 2. Start the frontend
 
@@ -99,7 +102,6 @@ Create `frontend/.env.local`:
 
 ```env
 EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
-EXPO_PUBLIC_NESSIE_CUSTOMER_ID=your-sandbox-customer-id
 ```
 
 Start Expo:
@@ -123,6 +125,10 @@ EXPO_PUBLIC_API_BASE_URL=http://192.168.x.x:8000
 ```
 
 Reload Expo after changing an `EXPO_PUBLIC_*` variable. Do not expose this development service to an untrusted network.
+
+### Demo data for charts
+
+From the backend directory, run `python -m seed_nessie_demo` with your Nessie sandbox key configured. This creates or updates the transaction history for a dedicated **Canopy Chart Demo** customer with checking, savings, and synthetic payroll and spending. Choose that customer in Canopy, or use the printed ID as your local customer default. Running the command again fills in missing weeks without duplicating the transactions for an already seeded week.
 
 ## Frontend
 
@@ -171,9 +177,10 @@ Important endpoint groups include:
 | --- | --- |
 | `GET /health` | Backend process health |
 | `GET /api/nessie/status` | Nessie configuration and connectivity |
-| `GET /api/customers` | Discover sandbox customers |
+| `GET /api/nessie/customer-options` | Discover sandbox customers and the backend's accessible default |
 | `GET /api/dashboard/{customer_id}` | Aggregated data used by the main screens |
 | `POST /api/risk/predict` | Baseline or shocked liquidity forecast |
+| `POST /api/risk/funding-plan` | Allocate a one-time expense across known checking and savings balances |
 | `POST /api/simulate` | Compare savings decisions over time |
 | `POST /api/headlines/analyze` | Estimate a headline's effects |
 | `/api/goals` | Create, update, list, and project goals |
@@ -204,7 +211,7 @@ The default backend tests use mocked HTTP responses and isolated databases. The 
 ## Troubleshooting
 
 - **The app says it cannot reach the API:** start FastAPI and verify `EXPO_PUBLIC_API_BASE_URL`. Use a LAN address for a physical phone.
-- **More than one Nessie customer is available:** set `EXPO_PUBLIC_NESSIE_CUSTOMER_ID` to the customer you want to display.
+- **More than one Nessie customer is available:** choose a customer in Canopy, or set `NESSIE_CUSTOMER_ID` in the backend environment to provide a default.
 - **A projection says inputs are missing:** the selected customer may not have enough transaction, income, debt, or rate data. The response's `missing_requirements` field explains what is absent.
 - **Environment changes do not appear:** stop and restart Expo so public environment variables are rebundled.
 - **Authentication accepts demo credentials:** this is intentional. Replace the `AuthService` implementation when connecting real identity infrastructure.

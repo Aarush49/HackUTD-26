@@ -3,8 +3,8 @@ import { AccessibilityInfo, Pressable, StyleSheet, View } from "react-native";
 import Svg, { Circle, Ellipse, G, Path } from "react-native-svg";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { Goal } from "@/lib/mock";
-import { useFinanceStore } from "@/lib/store";
+import type { Goal } from "@/lib/store";
+import { goalViews, useFinanceStore } from "@/lib/store";
 import { colors } from "@/lib/theme";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -13,7 +13,7 @@ export function Sapling({ goal, ambient = false, compact = false, onPress }: { g
   const shock = useFinanceStore(state => state.shock);
   const [reduceMotion, setReduceMotion] = useState(false);
   useEffect(() => { AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion); }, []);
-  const growth = Math.max(.08, Math.min(1, goal.growth - (shock ? .22 : 0)));
+  const growth = Math.max(.08, Math.min(1, goal.growth ?? 0));
   const stage = Math.min(4, Math.floor(growth * 5));
   const height = compact ? 70 : ambient ? 155 : 112;
   const crown = 15 + stage * 5;
@@ -40,15 +40,11 @@ export function Sapling({ goal, ambient = false, compact = false, onPress }: { g
 }
 
 export function GardenLayer() {
-  const { data, inspectGoal } = useFinanceStore();
   const insets = useSafeAreaInsets();
-  const trend = data.picture.periods.Month.change / 10;
-  const runway = Number.parseFloat(data.picture.health.runway) / 10;
-  const overallGrowth = Math.max(.08, Math.min(1, (trend + runway) / 2));
-  return <View pointerEvents="box-none" style={[s.layer, { bottom: 64 + insets.bottom }]}><View pointerEvents="none" style={s.soil}/>
-    <Sapling goal={data.goals[2]} onPress={() => inspectGoal(data.goals[2].id)}/>
-    <Sapling ambient goal={{ title: "Overall financial health", growth: overallGrowth }}/>
-    <Sapling goal={data.goals[0]} onPress={() => inspectGoal(data.goals[0].id)}/>
+  const { dashboard, baseline, inspectGoal } = useFinanceStore();
+  const goals = goalViews(dashboard, baseline).filter(goal => goal.growth !== null).slice(0, 3);
+  return <View pointerEvents="box-none" style={[s.layer, {bottom: 64 + insets.bottom}]}><View pointerEvents="none" style={s.soil}/>
+    {goals.map((goal,index) => <Sapling key={goal.id} goal={goal} ambient={index === 1} onPress={() => inspectGoal(goal.id)}/>)}
   </View>;
 }
 

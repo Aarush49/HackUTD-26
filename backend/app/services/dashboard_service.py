@@ -1,4 +1,15 @@
+from collections import defaultdict
+
 from app.models.financial import FinancialProfile, ZERO, cents
+
+
+def transaction_activity(profile: FinancialProfile) -> list[dict]:
+    totals = defaultdict(lambda: {"inflow": ZERO, "outflow": ZERO})
+    as_of = profile.retrieved_at.date()
+    for item in profile.transactions:
+        if item.posted(as_of) and item.direction in {"inflow", "outflow"}:
+            totals[item.date][item.direction] += item.amount
+    return [{"date": date, **amounts} for date, amounts in sorted(totals.items())]
 
 
 def dashboard(profile: FinancialProfile, goals: list) -> dict:
@@ -51,6 +62,7 @@ def dashboard(profile: FinancialProfile, goals: list) -> dict:
         "spending_breakdown": spending_breakdown,
         "income_trends": profile.income.series,
         "transactions": profile.transactions, "bills": profile.bills, "goals": goals,
+        "transaction_activity": transaction_activity(profile),
         "data_completeness": {
             "retrieved_at": profile.retrieved_at, "source": "nessie", "gaps": profile.data_gaps,
             "observation": profile.income.observation, "income_confidence": profile.income.confidence,
